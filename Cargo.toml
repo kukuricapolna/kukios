@@ -1,0 +1,49 @@
+[package]
+name = "kukios"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+uart_16550 = "0.2.0"
+x86_64 = "0.14.2"
+bootloader = { version = "0.9", features = ["map_physical_memory"] }
+volatile = "0.2.6"
+spin = "0.5.2"
+pic8259 = "0.10.1"
+pc-keyboard = "0.7.0"
+
+[profile.dev]
+# panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[target.'cfg(target_os = "linux")']
+rustflags = ["-C", "link-arg=-nostartfiles"]
+
+[target.'cfg(target_os = "windows")']
+rustflags = ["-C", "link-args=/ENTRY:_start /SUBSYSTEM:console"]
+
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-args=-e __start -static -nostartfiles"]
+
+[target.'cfg(target_os = "none")']
+runner = "qemu-system-x86_64 -drive format=raw,file=/Users/jurkokri/www/kukios/target/x86_64-kukios/debug/bootimage-kukios.bin"
+
+[dependencies.lazy_static]
+version = "1.0"
+features = ["spin_no_std"]
+
+[package.metadata.bootimage]
+test-args = [
+    "-device",
+    "isa-debug-exit, iobase=0xf4, iosize=0x04",
+    "-serial",
+    "stdio",
+    "-display",
+    "none",
+]
+test-success-exit-code = 33
+test-timeout = 300 # secs
