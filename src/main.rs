@@ -3,10 +3,17 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
-use core::panic::PanicInfo;
+
+extern crate alloc;
+
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 
 use bootloader::{entry_point, BootInfo};
-use kukios::memory::{self, BootInfoFrameAllocator};
+use core::panic::PanicInfo;
+use kukios::{
+    memory::{self, BootInfoFrameAllocator},
+    task::{simple_executor::SimpleExecutor, Task},
+};
 use vga_buffer::print_something;
 use x86_64::structures::paging::Page;
 
@@ -19,6 +26,8 @@ entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // use kukios::memory::active_level_4_table;
+    use kukios::allocator;
+    use kukios::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
 
     println!("Kukiweb + intelligence = KukiOS{}", "!");
@@ -26,6 +35,29 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    allocator::init_heap(&mut mapper, &mut frame_allocator)
+        .expect("SERIOUS EXCEPTION: HEAP init failed");
+    let heap_value = Box::new(41);
+    println!("heap_value is located at {:p}", heap_value);
+    let mut executor = SimpleExecutor::new();
+    executor.spawn(Task::new(example_task()));
+    executor.run();
+    let mut vec = Vec::new();
+    for i in 0..500 {
+        vec.push(i)
+    }
+    println!("vec is located at {:p}", vec.as_slice());
+    let reference_counted = Rc::new(vec![1, 2, 3]);
+    let cloned_reference = reference_counted.clone();
+    println!(
+        "Current reference count is at value of {}",
+        Rc::strong_count(&cloned_reference)
+    );
+    core::mem::drop(reference_counted);
+    println!(
+        "Reference count is at value of {} now.",
+        Rc::strong_count(&cloned_reference)
+    );
     let page = Page::containing_address(VirtAddr::new(0xdeadbeef000));
     memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
     let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
@@ -141,4 +173,12 @@ where
         self();
         serial_println!("[ok]");
     }
+}
+async fn async_number() -> u32 {
+    42
+}
+
+async fn example_task() {
+    let number = async_number().await;
+    println!("The async number is {}", number);
 }
