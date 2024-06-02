@@ -12,7 +12,7 @@ use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use kukios::{
     memory::{self, BootInfoFrameAllocator},
-    task::{simple_executor::SimpleExecutor, Task},
+    task::{executor::Executor, keyboard, simple_executor::SimpleExecutor, Task},
 };
 use vga_buffer::print_something;
 use x86_64::structures::paging::Page;
@@ -39,8 +39,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         .expect("SERIOUS EXCEPTION: HEAP init failed");
     let heap_value = Box::new(41);
     println!("heap_value is located at {:p}", heap_value);
-    let mut executor = SimpleExecutor::new();
+    let mut executor = Executor::new();
     executor.spawn(Task::new(example_task()));
+    executor.spawn(Task::new(keyboard::print_keypresses()));
     executor.run();
     let mut vec = Vec::new();
     for i in 0..500 {
