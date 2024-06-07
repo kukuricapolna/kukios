@@ -7,9 +7,10 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
-
 use bootloader::{entry_point, BootInfo};
-use core::panic::PanicInfo;
+use core::arch::asm;
+use core::{panic::PanicInfo, time};
+// use functions::{delay, shutdown};
 use kukios::{
     memory::{self, BootInfoFrameAllocator},
     task::{executor::Executor, keyboard, simple_executor::SimpleExecutor, Task},
@@ -17,6 +18,7 @@ use kukios::{
 use vga_buffer::print_something;
 use x86_64::structures::paging::Page;
 
+mod functions;
 mod serial;
 mod vga_buffer;
 
@@ -26,11 +28,18 @@ entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // use kukios::memory::active_level_4_table;
+    use core::time::Duration;
     use kukios::allocator;
     use kukios::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
+    let ten_secs = Duration::from_secs(10);
+    println!("Delaying for 10 secs.");
 
+    println!("Delayed.");
+    println!("Shutting down.");
+    // shutdown();
     println!("Kukiweb + intelligence = KukiOS{}", "!");
+
     kukios::init();
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
@@ -39,9 +48,22 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         .expect("SERIOUS EXCEPTION: HEAP init failed");
     let heap_value = Box::new(41);
     println!("heap_value is located at {:p}", heap_value);
+    // let ten = time::Duration::new(10, 0).as_secs();
+
+    // unsafe {
+    //     asm!(
+    //         "mov  $0x58, %al",
+    //         "mov  $0xfee1dead, %ebx",
+    //         "mov  $0x28121969, %ecx",
+    //         "mov  $0x4321fedc, %edx",
+    //         "int  $0x80",
+    //     );
+    // }
+
     let mut executor = Executor::new();
     executor.spawn(Task::new(example_task()));
     executor.spawn(Task::new(keyboard::print_keypresses()));
+    // executor.spawn(Task::new(future))
     executor.run();
     let mut vec = Vec::new();
     for i in 0..500 {
@@ -182,4 +204,26 @@ async fn async_number() -> u32 {
 async fn example_task() {
     let number = async_number().await;
     println!("The async number is {}", number);
+}
+
+pub fn shutdown() {
+    unsafe {
+        asm!(
+            "mov ax, 0x1000",
+            "mov ax, ss",
+            "mov sp, 0xf000",
+            "mov ax, 0x5307",
+            "mov bx, 0x0001",
+            "mov cx, 0x0003",
+            "int 0x15",
+        );
+    }
+}
+
+fn delay(seconds: u64) {
+    const CYCLES_PER_SECOND: u64 = 2_900_000_000;
+    let target = seconds * CYCLES_PER_SECOND;
+    for _ in 0..target {
+        core::hint::spin_loop();
+    }
 }

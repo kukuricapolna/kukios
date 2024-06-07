@@ -1,8 +1,19 @@
-use crate::{gdt, hlt_loop, print, println};
+use crate::{
+    functions::{help, last_two_keys},
+    gdt, hlt_loop, print, println, sleep,
+};
+use alloc::{
+    string::{String, ToString},
+    vec::{self, Vec},
+};
+use core::arch::{asm, x86_64::_rdtsc};
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
-use spin;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use spin::{self, Mutex};
+use x86_64::{
+    instructions::port::Port,
+    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
+};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -18,6 +29,10 @@ impl InterruptIndex {
     fn as_usize(self) -> usize {
         usize::from(self.as_u8())
     }
+}
+
+lazy_static! {
+    static ref KEYS_PRESSED: Mutex<Vec<char>> = Mutex::new(Vec::new());
 }
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -43,7 +58,7 @@ lazy_static! {
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    print!(".");
+    // print!(".");
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
@@ -75,7 +90,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
     use spin::Mutex;
     use x86_64::instructions::port::Port;
-
+    let mut keys_pressed: Vec<char> = Vec::new();
     lazy_static! {
         static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
             Mutex::new(Keyboard::new(
@@ -95,7 +110,35 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
+                DecodedKey::Unicode(character) => {
+                    use alloc::vec;
+                    let mut keyspressed = KEYS_PRESSED.lock();
+                    keyspressed.push(character);
+                    let ltwo = last_two_keys(&mut keyspressed);
+                    let shutdown_combination: Vec<char> =
+                        vec!["S".parse().unwrap(), "D".parse().unwrap()];
+                    let help_combination: Vec<char> =
+                        vec!["L".parse().unwrap(), "P".parse().unwrap()];
+                    if ltwo.contains(&shutdown_combination[0])
+                        && ltwo.contains(&shutdown_combination[1])
+                    {
+                        unsafe { acpi_shutdown() }
+                    }
+
+                    if ltwo.contains(&help_combination[0]) && ltwo.contains(&help_combination[1]) {
+                        help();
+                    }
+
+                    if character.to_string().as_str().trim_end() == "l" {
+                        print!("Latest keys pressed ({} keys pressed): ", keyspressed.len());
+                        for key in &*keyspressed {
+                            print!("{}", key);
+                        }
+                    } else {
+                        let _ = character.clone();
+                        print!("{}", character.clone())
+                    }
+                }
                 DecodedKey::RawKey(key) => print!("{:?}", key),
             }
         }
@@ -135,3 +178,46 @@ extern "x86-interrupt" fn page_fault_handler(
     println!("{:#?}", stack_frame);
     hlt_loop();
 }
+
+unsafe fn acpi_shutdown() {
+    println!("Shutting down in few seconds. Get ready!");
+    use x86_64::instructions::port::Port;
+    println!("Performing shutdown using writing to ACPI control block. [ok]");
+    sleep(10000000);
+    const PM1A_CNT_BLK: u16 = 0xB004;
+    const SLP_TYPA: u16 = 0x2000;
+    const SLP_EN: u16 = 1 << 13;
+
+    let shutdown_cmd: u16 = SLP_TYPA | SLP_EN;
+    let mut port = Port::new(PM1A_CNT_BLK);
+
+    port.write(shutdown_cmd);
+    let mut port_604 = Port::new(0x604);
+    port_604.write(0x2000u16);
+}
+
+// fn ask(text: &str) {
+//     let mut input = [0; 128];
+
+//     print!("Enter {text}: ");
+//     let _ =
+// }
+
+/*if character.to_string().as_str() == "s" {
+    // let _ = car.clone();
+    print!("Shutting down!");
+
+    unsafe {
+        print!("Shutting down....");
+        // asm!(
+        //     "mov ax, 0x1000",
+        //     "mov ax, ss",
+        //     "mov sp, 0xf000",
+        //     "mov ax, 0x5307",
+        //     "mov bx, 0x0001",
+        //     "mov cx, 0x0003",
+        //     "int 0x15",
+        // );
+        acpi_shutdown();
+    }
+}  */

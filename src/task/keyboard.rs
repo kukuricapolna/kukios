@@ -1,4 +1,5 @@
 use crate::{print, println};
+use alloc::{borrow::ToOwned, string::ToString};
 use conquer_once::spin::OnceCell;
 use core::{
     pin::Pin,
@@ -7,7 +8,9 @@ use core::{
 use crossbeam_queue::ArrayQueue;
 use futures_util::task::AtomicWaker;
 use futures_util::{stream::Stream, StreamExt};
-use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet, ScancodeSet1};
+use pc_keyboard::{
+    layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet, ScancodeSet1,
+};
 
 static WAKER: AtomicWaker = AtomicWaker::new();
 
@@ -70,8 +73,16 @@ pub async fn print_keypresses() {
         if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
             if let Some(key) = keyboard.process_keyevent(key_event) {
                 match key {
-                    DecodedKey::Unicode(character) => print!("{}", character),
-                    DecodedKey::RawKey(key) => print!("{:?}", key),
+                    DecodedKey::Unicode(character) => {
+                        print!(
+                            "{} is your character {} as string",
+                            character,
+                            character.to_string().as_str()
+                        )
+                    }
+                    DecodedKey::RawKey(key) => {
+                        print!("{:?}", key)
+                    }
                 }
             }
         }

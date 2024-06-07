@@ -9,6 +9,8 @@
 extern crate alloc;
 
 pub mod allocator;
+// pub mod functions;
+pub mod functions;
 pub mod gdt;
 pub mod interrupts;
 pub mod memory;
@@ -16,8 +18,9 @@ pub mod serial;
 pub mod task;
 pub mod vga_buffer;
 
-use core::panic::PanicInfo;
+use core::{arch::asm, panic::PanicInfo};
 
+use alloc::vec::Vec;
 #[cfg(test)]
 use bootloader::{entry_point, BootInfo};
 
@@ -34,6 +37,17 @@ fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
 pub fn hlt_loop() -> ! {
     loop {
         x86_64::instructions::hlt();
+    }
+}
+
+pub fn sleep(ms: u64) {
+    let cycles = ms * 1_000_000;
+    let ticks = cycles / (1_000_000_000 / 50);
+    let mut s: Vec<u64> = Vec::new();
+    for x in 0..ticks {
+        // println!("Waiting: {x}");
+        // s.push(x);
+        unsafe { asm!("nop") }
     }
 }
 
