@@ -1,5 +1,5 @@
 use crate::{
-    functions::{help, last_two_keys},
+    functions::{help, last_two_keys, list_dir},
     gdt, hlt_loop, print, println, sleep,
 };
 use alloc::{
@@ -14,7 +14,6 @@ use x86_64::{
     instructions::port::Port,
     structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
 };
-
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum InterruptIndex {
@@ -119,6 +118,8 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                         vec!["S".parse().unwrap(), "D".parse().unwrap()];
                     let help_combination: Vec<char> =
                         vec!["L".parse().unwrap(), "P".parse().unwrap()];
+                    let list_combination: Vec<char> =
+                        vec!["L".parse().unwrap(), "I".parse().unwrap()];
                     if ltwo.contains(&shutdown_combination[0])
                         && ltwo.contains(&shutdown_combination[1])
                     {
@@ -128,8 +129,13 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                     if ltwo.contains(&help_combination[0]) && ltwo.contains(&help_combination[1]) {
                         help();
                     }
+                    if ltwo.contains(&list_combination[0]) && ltwo.contains(&list_combination[1]) {
+                        list_dir();
+                    }
 
-                    if character.to_string().as_str().trim_end() == "l" {
+                    if character.to_string().as_str().trim_end() == "LShift" {
+                        print!("");
+                    } else if character.to_string().as_str().trim_end() == "l" {
                         print!("Latest keys pressed ({} keys pressed): ", keyspressed.len());
                         for key in &*keyspressed {
                             print!("{}", key);

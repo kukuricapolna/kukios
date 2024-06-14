@@ -10,6 +10,9 @@ extern crate alloc;
 
 pub mod allocator;
 // pub mod functions;
+// pub mod ethernet;
+pub mod asm;
+pub mod filesystem;
 pub mod functions;
 pub mod gdt;
 pub mod interrupts;

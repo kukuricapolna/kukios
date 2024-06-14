@@ -14,6 +14,7 @@ spin = "0.5.2"
 pic8259 = "0.10.1"
 pc-keyboard = "0.7.0"
 linked_list_allocator = "0.9.0"
+# fatfs = { version = "0.3.6", features = ["core_io"], default-features = false }
 
 
 [profile.dev]
@@ -32,7 +33,8 @@ rustflags = ["-C", "link-args=/ENTRY:_start /SUBSYSTEM:console"]
 rustflags = ["-C", "link-args=-e __start -static -nostartfiles"]
 
 [target.'cfg(target_os = "none")']
-runner = "qemu-system-x86_64 -drive format=raw,file=/Users/jurkokri/www/kukios/target/x86_64-kukios/debug/bootimage-kukios.bin"
+# runner = "qemu-system-x86_64 -drive format=raw,file=/Users/jurkokri/www/kukios/target/x86_64-kukios/debug/bootimage-kukios.bin"
+runner = "bootimage runner"
 
 [dependencies.lazy_static]
 version = "1.0"

@@ -1,6 +1,7 @@
 global _main
 
 section .text
+    msg db "Hello World", 0xA
 
 _main:
     mov rax, 1

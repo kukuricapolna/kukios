@@ -6,10 +6,13 @@
 
 extern crate alloc;
 
+use alloc::string::ToString;
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use bootloader::{entry_point, BootInfo};
-use core::arch::asm;
+use core::arch::{asm, global_asm};
 use core::{panic::PanicInfo, time};
+use kukios::filesystem::FileSystem;
+
 // use functions::{delay, shutdown};
 use kukios::{
     memory::{self, BootInfoFrameAllocator},
@@ -18,6 +21,7 @@ use kukios::{
 use vga_buffer::print_something;
 use x86_64::structures::paging::Page;
 
+mod asm;
 mod functions;
 mod serial;
 mod vga_buffer;
@@ -30,10 +34,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // use kukios::memory::active_level_4_table;
     use core::time::Duration;
     use kukios::allocator;
+    use kukios::functions::translate_to_string_utf8loosy;
     use kukios::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
-    let ten_secs = Duration::from_secs(10);
+    // let ten_secs = Duration::from_secs(10);
     println!("Delaying for 10 secs.");
+
+    // let device = MyDevice;
 
     println!("Delayed.");
     println!("Shutting down.");
@@ -60,11 +67,12 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     //     );
     // }
 
-    let mut executor = Executor::new();
-    executor.spawn(Task::new(example_task()));
-    executor.spawn(Task::new(keyboard::print_keypresses()));
+    // let mut executor = Executor::new();
+
+    // executor.spawn(Task::new(example_task()));
+    // executor.spawn(Task::new(keyboard::print_keypresses()));
     // executor.spawn(Task::new(future))
-    executor.run();
+    // executor.run();
     let mut vec = Vec::new();
     for i in 0..500 {
         vec.push(i)
@@ -81,10 +89,26 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         "Reference count is at value of {} now.",
         Rc::strong_count(&cloned_reference)
     );
-    let page = Page::containing_address(VirtAddr::new(0xdeadbeef000));
-    memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
-    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
-    unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e) };
+    let mut fs = FileSystem::new(1024, 128, 512);
+    let file_inode = fs.create_file(1024);
+    let data = b"Somebody may say love is everything, but that's wrong! KukiOS is everything!";
+    fs.write_file(file_inode, data);
+
+    let mut buffer = vec![0; data.len()];
+    let bytes_read = fs.read_file(file_inode, &mut buffer);
+
+    let translated_text = translate_to_string_utf8loosy(&buffer[..bytes_read]);
+    println!("Translated text: {translated_text}");
+    // assert_eq!(&buffer[..bytes_read], data);
+    // println!(
+    // "File system operational. Written and read: {:?}",
+    // &buffer[..bytes_read]
+    // );
+    // fs.re
+    // let page = Page::containing_address(VirtAddr::new(0xdeadbeef000));
+    // memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
+    // let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
+    // unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e) };
     // let l4_table = unsafe { active_level_4_table(phys_mem_offset) };
     // for (i, entry) in l4_table.iter().enumerate() {
     //     if !entry.is_unused() {
@@ -97,6 +121,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // test_main();
 
     println!("Works!");
+
     kukios::hlt_loop();
 }
 
@@ -141,7 +166,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
+    println!("[fail]");
+    println!("ERROR: KukiOS panicked: {}", info);
     kukios::hlt_loop();
 }
 
@@ -178,7 +204,7 @@ fn trivial_assertion() {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     serial_println!("[fail]\n");
-    serial_println!("Error: {}\n", info);
+    serial_println!("Error: KukiOS panicked: {}\n", info);
     exit_qemu(QemuExitCode::Failed);
     loop {}
 }
@@ -227,3 +253,19 @@ fn delay(seconds: u64) {
         core::hint::spin_loop();
     }
 }
+
+// pub struct MyDevice;
+
+// impl Device for MyDevice {
+//     fn capabilities(&self) -> DeviceCapabilities {
+//         let mut caps = DeviceCapabilities::default();
+//         caps.max_transmission_unit = 1500;
+//         caps
+//     }
+//     fn transmit(&mut self) -> Option<TxToken> {
+//         None
+//     }
+//     fn receive(&mut self) -> Option<RxToken> {
+//         None
+//     }
+// }

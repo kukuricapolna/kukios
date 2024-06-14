@@ -9,6 +9,8 @@ use x86_64::{
     VirtAddr,
 };
 
+use crate::println;
+
 pub struct Locked<A> {
     inner: spin::Mutex<A>,
 }
@@ -32,12 +34,13 @@ static ALLOCATOR: Locked<LinkedListAllocator> = Locked::new(LinkedListAllocator:
                                                                                          // static ALLOCATOR: LockedHeap = LockedHeap::empty(); //normal
 
 pub const HEAP_START: usize = 0x_4444_4444_0000;
-pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
+pub const HEAP_SIZE: usize = 15000 * 1024; // 1500 KiB
 
 pub struct Dummy;
 
 unsafe impl GlobalAlloc for Dummy {
     unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
+        println!("Allocating....");
         null_mut()
     }
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
@@ -49,6 +52,7 @@ pub fn init_heap(
     mapper: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
 ) -> Result<(), MapToError<Size4KiB>> {
+    println!("Initializing heap allocator....");
     let page_range = {
         let heap_start = VirtAddr::new(HEAP_START as u64);
         let heap_end = heap_start + HEAP_SIZE - 1u64;

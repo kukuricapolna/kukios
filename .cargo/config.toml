@@ -18,5 +18,6 @@ rustflags = ["-C", "link-args=/ENTRY:_start /SUBSYSTEM:console"]
 rustflags = ["-C", "link-args=-e __start -static -nostartfiles"]
 
 [target.'cfg(target_os = "none")']
-runner = "/Users/jurkokri/www/kukios/rnr.sh /Users/jurkokri/www/kukios/target/x86_64-kukios/debug/bootimage-kukios.bin"
+runner = "bootimage runner"
+# runner = "/Users/jurkokri/www/kukios/rnr.sh /Users/jurkokri/www/kukios/target/x86_64-kukios/debug/bootimage-kukios.bin"
 #qemu-system-x86_64 -drive format=raw,file=/Users/jurkokri/www/kukios/target/x86_64-kukios/debug/bootimage-kukios.bin

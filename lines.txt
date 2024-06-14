@@ -1,0 +1,35 @@
+1478 total
+     229 ./src//main.rs
+     223 ./src//interrupts.rs
+     186 ./src//vga_buffer.rs
+     120 ./src//lib.rs
+     103 ./src//allocator/linked_list.rs
+      97 ./src//task/executor.rs
+      90 ./src//task/keyboard.rs
+      80 ./src//allocator.rs
+      79 ./src//memory.rs
+      57 ./src//gdt.rs
+      55 ./src//allocator/bump.rs
+      42 ./src//functions.rs
+      41 ./src//task/simple_executor.rs
+      38 ./src//task/mod.rs
+      38 ./src//serial.rs
+# smoltcp = { version = "0.7.1", default-features = false }
+
+use std::env;
+
+fn main() {
+    // println!(
+    //     "cargo:rustc-link-search=native={}",
+    //     env::var("OUT_DIR").unwrap().to_string()
+    // );
+    // println!(
+    //     "cargo:rustc-link-search=native={}",
+    //     std::env::current_dir().unwrap().display()
+    // );
+    println!("cargo:rustc-link-search=native=.");
+
+    println!("cargo:rustc-link-lib=static=./filesystem.o");
+
+    println!("cargo:rerun-if-changed=filesystem.o");
+}
