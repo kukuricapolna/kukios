@@ -125,7 +125,7 @@ impl fmt::Write for Writer {
 
 // #[repr(transparent)]
 
-pub fn print_something() {
+pub fn _print_something() {
     // use core::fmt::Write;
     let mut writer = Writer {
         column_position: 0,

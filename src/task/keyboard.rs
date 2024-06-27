@@ -1,5 +1,5 @@
 use crate::{print, println};
-use alloc::{borrow::ToOwned, string::ToString};
+use alloc::string::ToString;
 use conquer_once::spin::OnceCell;
 use core::{
     pin::Pin,
@@ -8,9 +8,7 @@ use core::{
 use crossbeam_queue::ArrayQueue;
 use futures_util::task::AtomicWaker;
 use futures_util::{stream::Stream, StreamExt};
-use pc_keyboard::{
-    layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet, ScancodeSet1,
-};
+use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
 
 static WAKER: AtomicWaker = AtomicWaker::new();
 
@@ -29,7 +27,7 @@ impl ScancodeStream {
 
 static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 
-pub(crate) fn add_scancode(scancode: u8) {
+pub(crate) fn _add_scancode(scancode: u8) {
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
         if let Err(_) = queue.push(scancode) {
             println!("WARNING: SCANCODE queue FULL. Dropping keyboard input!");

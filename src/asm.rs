@@ -34,7 +34,7 @@ global_asm!(
     "#
 );
 extern "C" {
-    pub fn get_current_directory();
+    pub fn _get_current_directory();
 }
 // global_asm!(r#"")
 

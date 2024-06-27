@@ -1,132 +1,252 @@
-use alloc::string::{String, ToString};
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{borrow::ToOwned, vec::Vec};
+
+use spin::Mutex;
+
+use crate::{
+    disk::{Disk, SECTOR_SIZE},
+    println,
+};
+
+pub const BLOCK_SIZE: usize = SECTOR_SIZE;
+pub const TOTAL_BLOCKS: usize = 1024; // 512KB Filesystem
+pub const MAX_FILES: usize = 128;
+
+static FILE_SYSTEM: Mutex<FileSystem> = Mutex::new(FileSystem::new());
 
 #[repr(C)]
 pub struct SuperBlock {
-    pub magic: u32,
-    pub total_blocks: u32,
-    pub inode_count: u32,
-    pub block_size: u32,
+    magic: u32,
+    total_blocks: u32,
+    free_blocks: u32,
+    root_dir_block: u32,
 }
 
 #[repr(C)]
+#[derive(Clone, Copy, Debug)]
 pub struct Inode {
-    pub size: u32,
-    pub blocks: [u32; 12],
-    pub indirect_block: u32,
+    size: u32,
+    block_ptrs: [u32; 10],
 }
 
 #[repr(C)]
-pub struct DirEntry {
-    pub inode: u32,
-    pub name: [u8; 28],
+#[derive(Debug, Clone, Copy)]
+pub struct DirectoryEntry {
+    name: [u8; 32],
+    inode: u32,
 }
 
-const MAGIC_NUMBER: u32 = 0x12345678;
-
-impl SuperBlock {
-    pub fn new(total_blocks: u32, inode_count: u32, block_size: u32) -> Self {
-        SuperBlock {
-            magic: MAGIC_NUMBER,
-            total_blocks,
-            inode_count,
-            block_size,
-        }
-    }
+pub struct Directory {
+    entries: [DirectoryEntry; MAX_FILES],
 }
 
-impl Inode {
-    pub fn new(size: u32) -> Self {
-        Inode {
-            size,
-            blocks: [0; 12],
-            indirect_block: 0,
-        }
-    }
-}
-
+#[allow(dead_code)]
 pub struct FileSystem {
     superblock: SuperBlock,
-    inodes: Vec<Inode>,
-    data_blocks: Vec<Vec<u8>>,
+    inodes: [Inode; TOTAL_BLOCKS],
+    root_directory: Directory,
 }
 
 impl FileSystem {
-    pub fn new(total_blocks: u32, inode_count: u32, block_size: u32) -> Self {
-        FileSystem {
-            superblock: SuperBlock::new(total_blocks, inode_count, block_size),
-            inodes: Vec::new(),
-            data_blocks: vec![vec![0; block_size as usize]; total_blocks as usize],
+    pub const fn new() -> Self {
+        Self {
+            superblock: SuperBlock {
+                magic: 0xF0F03410,
+                total_blocks: TOTAL_BLOCKS as u32,
+                free_blocks: TOTAL_BLOCKS as u32 - 1,
+                root_dir_block: 1,
+            },
+            inodes: [Inode {
+                size: 0,
+                block_ptrs: [0; 10],
+            }; TOTAL_BLOCKS],
+            root_directory: Directory {
+                entries: [DirectoryEntry {
+                    name: [0; 32],
+                    inode: 0,
+                }; MAX_FILES],
+            },
         }
     }
-    pub fn create_file(&mut self, size: u32) -> usize {
-        let inode = Inode::new(size);
-        self.inodes.push(inode);
-        self.inodes.len() - 1
+    pub fn init(&mut self) {
+        println!("Initing....");
+        self.inodes[0].size = 0;
+        self.inodes[0].block_ptrs[0] = 1;
     }
-    pub fn write_file(&mut self, inode_index: usize, data: &[u8]) {
-        // let inode = &mut self.inodes[inode_index];
-        let block_size = self.superblock.block_size as usize;
-        let mut offset = 0;
-        let mut blocks = Vec::new();
-
-        while offset < data.len() {
-            let blocks_index = self.allocate_block();
-            blocks.push(blocks_index);
-            offset += block_size;
-        }
-        {
-            let inode = &mut self.inodes[inode_index];
-            for (i, &block_index) in blocks.iter().enumerate() {
-                if i > inode.blocks.len() {
-                    break;
-                }
-                inode.blocks[i] = block_index as u32;
+    pub fn read_block(&self, block_num: usize) -> [u8; BLOCK_SIZE] {
+        println!("Reading block....");
+        let mut buffer = [0u8; BLOCK_SIZE];
+        Disk::read_sector(&Disk, block_num as u64, &mut buffer)
+            .unwrap_or_else(|err| println!("Error reading sector: {err}"));
+        buffer
+    }
+    pub fn write_block(&mut self, block_num: usize, data: &[u8]) {
+        println!("Writing block {block_num}....");
+        assert!(data.len() == BLOCK_SIZE);
+        println!("Let buffer");
+        let mut buffer = [0u8; BLOCK_SIZE];
+        println!("Let buffer copy from slice");
+        buffer.copy_from_slice(data);
+        println!("Write sector!");
+        match Disk::write_sector(&Disk, block_num as u64, &mut &buffer) {
+            Ok(_) => {
+                println!("[OK] Finished writing sector!");
             }
-        }
-        offset = 0;
-        for (i, &block_index) in blocks.iter().enumerate() {
-            let end = usize::min(offset + block_size, data.len());
-            self.data_blocks[block_index][..end - offset].copy_from_slice(&data[offset..end]);
-            offset += block_size;
-        }
-        // for i in 0..inode.blocks.len() {
-        //     if offset >= data.len() {
-        //         break;
-        //     }
-        //     let block_index = self.allocate_block();
-        //     inode.blocks[i] = block_index as u32;
-        //     let end = usize::min(offset + block_size, data.len());
-        //     self.data_blocks[block_index][..end - offset].copy_from_slice(&data[offset..end]);
-        //     offset += block_size;
-        // }
+            Err(err) => {
+                println!("Error: {err}");
+            }
+        };
+        println!("Finished writing block....");
+        println!("Finished writing block {block_num}");
     }
-    pub fn read_file(&self, inode_index: usize, buffer: &mut [u8]) -> usize {
-        let inode = &self.inodes[inode_index];
-        let block_size = self.superblock.block_size as usize;
-        let mut offset = 0;
-        for &block_index in &inode.blocks {
-            if offset >= buffer.len() {
+    pub fn read_inode(&self, inode_num: usize) -> &Inode {
+        println!("Reading inode....");
+        &self.inodes[inode_num]
+    }
+    pub fn write_inode(&mut self, inode_num: usize, inode: Inode) {
+        println!("Writing inode....");
+        self.inodes[inode_num] = inode;
+    }
+    pub fn create_file(&mut self, name: &str) -> Result<u32, &'static str> {
+        println!("Creating file: {name}");
+        let mut free_inode = None;
+        for (i, inode) in self.inodes.iter_mut().enumerate() {
+            println!("For inode");
+            if inode.size == 0 {
+                free_inode = Some(i as u32);
                 break;
             }
-            // let end = usize::min(offset + block_size, buffer.len());
-            let data_block = &self.data_blocks[block_index as usize];
-            let remaining_data = buffer.len() - offset;
-            let copy_length = usize::min(block_size, remaining_data);
-            buffer[offset..offset + copy_length].copy_from_slice(&data_block[..copy_length]);
-            offset += copy_length;
         }
-        offset
-    }
-    pub fn allocate_block(&mut self) -> usize {
-        for (i, block) in self.data_blocks.iter().enumerate() {
-            if block.iter().all(|&b| b == 0) {
-                return i;
+        let inode_num = match free_inode {
+            Some(num) => num,
+            None => return Err("No free inodes available!"),
+        };
+        let mut free_entry = None;
+        for entry in self.root_directory.entries.iter_mut() {
+            println!("For entry");
+            if entry.name[0] == 0 {
+                free_entry = Some(entry);
+                break;
             }
         }
-        panic!(
-            "SERIOUS FAULT: ERROR. Trying to allocate even if there are no free blocks available."
-        )
+        let entry = match free_entry {
+            Some(e) => e,
+            None => return Err("No free directory entries available."),
+        };
+        let name_bytes = name.as_bytes();
+        if name_bytes.len() > 32 {
+            return Err("File name longer than 32 chars / bytes!");
+        }
+        println!("Last part of creating the file");
+        entry.name[..name_bytes.len()].copy_from_slice(name_bytes);
+        entry.inode = inode_num;
+        println!("File {name} created with inode {inode_num}");
+        Ok(inode_num)
     }
+    fn find_free_blocks(&self, count: usize) -> Result<Vec<u32>, &'static str> {
+        println!("Finding free blocks");
+        let mut free_blocks = Vec::new();
+        for block_num in 1..TOTAL_BLOCKS {
+            if self
+                .inodes
+                .iter()
+                .all(|inode| !inode.block_ptrs.contains(&(block_num as u32)))
+            {
+                free_blocks.push(block_num as u32);
+                if free_blocks.len() == count {
+                    break;
+                }
+            }
+        }
+        if free_blocks.len() == count {
+            Ok(free_blocks)
+        } else {
+            Err("Not enough free blocks available!")
+        }
+    }
+    pub fn write_file(&mut self, inode_num: u32, data: &[u8]) -> Result<(), &'static str> {
+        println!("Writing file to inode: {inode_num}");
+        if inode_num as usize >= TOTAL_BLOCKS {
+            return Err("Invalid inode number!");
+        }
+        let blocks_needed = (data.len() + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        if blocks_needed > 10 {
+            return Err("File too large!"); // TODO: Better error message.
+        }
+        let free_blocks = self.find_free_blocks(blocks_needed)?;
+        for (i, &block_num) in free_blocks.iter().enumerate() {
+            let start = i * BLOCK_SIZE;
+            let end = core::cmp::min(start + BLOCK_SIZE, data.len());
+            let block_data = &data[start..end];
+            let mut block_buffer = [0u8; BLOCK_SIZE];
+
+            println!(
+                "Copying data to block buffer, start: {}, end: {}",
+                start, end
+            );
+            // println!("1 important");
+            block_buffer[..block_data.len()].copy_from_slice(block_data);
+            // println!("2 important");
+            println!(
+                "Writing block number {} with data {:?}",
+                block_num,
+                &block_buffer[..]
+            );
+            self.write_block(block_num as usize, &block_buffer);
+            // println!("3 important");
+            println!(
+                "Updating inode block pointers, inode_num: {}, i: {}, block_num: {}",
+                inode_num, i, block_num
+            );
+            if i < self.inodes[inode_num as usize].block_ptrs.len() {
+                self.inodes[inode_num as usize].block_ptrs[i] = block_num;
+            } else {
+                println!("THE I IS {i}");
+                return Err("Block pointer index out of bounds");
+            }
+        }
+        println!(
+            "Setting inode size, inode_num: {}, size: {}",
+            inode_num,
+            data.len()
+        );
+        self.inodes[inode_num as usize].size = data.len() as u32;
+        let inode = &self.inodes[inode_num as usize];
+        println!(
+            "Inode details: size: {}, block_ptrs: {:?}",
+            inode.size, inode.block_ptrs
+        );
+        println!(
+            "Finished writing file. Inode size: {}",
+            self.inodes[inode_num as usize].size
+        );
+        Ok(())
+    }
+}
+
+pub fn read_block(block_num: usize) -> [u8; BLOCK_SIZE] {
+    FILE_SYSTEM.lock().read_block(block_num)
+}
+
+pub fn write_block(block_num: usize, data: &[u8]) {
+    FILE_SYSTEM.lock().write_block(block_num, data)
+}
+
+pub fn read_inode(inode_num: usize) -> Inode {
+    FILE_SYSTEM.lock().read_inode(inode_num).to_owned()
+}
+
+pub fn write_inode(inode_num: usize, inode: Inode) {
+    FILE_SYSTEM.lock().write_inode(inode_num, inode)
+}
+
+pub fn init_fs() {
+    FILE_SYSTEM.lock().init();
+}
+
+pub fn create_file(name: &str) -> Result<u32, &'static str> {
+    FILE_SYSTEM.lock().create_file(name)
+}
+
+pub fn write_file(inode_num: u32, data: &[u8]) -> Result<(), &'static str> {
+    FILE_SYSTEM.lock().write_file(inode_num, data)
 }

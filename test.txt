@@ -1,0 +1,32 @@
+use alloc::vec;
+                    let mut keyspressed = KEYS_PRESSED.lock();
+                    keyspressed.push(character);
+                    let ltwo = _last_two_keys(&mut keyspressed);
+                    let shutdown_combination: Vec<char> =
+                        vec!["S".parse().unwrap(), "D".parse().unwrap()];
+                    let help_combination: Vec<char> =
+                        vec!["L".parse().unwrap(), "P".parse().unwrap()];
+                    let list_combination: Vec<char> =
+                        vec!["L".parse().unwrap(), "I".parse().unwrap()];
+                    if ltwo.contains(&shutdown_combination[0])
+                        && ltwo.contains(&shutdown_combination[1])
+                    {
+                        unsafe { acpi_shutdown() }
+                    }
+
+                    if ltwo.contains(&help_combination[0]) && ltwo.contains(&help_combination[1]) {
+                        _help();
+                    }
+                    if ltwo.contains(&list_combination[0]) && ltwo.contains(&list_combination[1]) {
+                        // list_dir();
+                        println!("[OK] Testing went fine....")
+                    }
+
+                    if character.to_string().as_str().trim_end() == "LShift" {
+                        print!("");
+                    } else if character.to_string().as_str().trim_end() == "l" {
+                        print!("Latest keys pressed ({} keys pressed): ", keyspressed.len());
+                        for key in &*keyspressed {
+                            print!("{}", key);
+                        }
+                    }

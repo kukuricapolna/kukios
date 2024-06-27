@@ -1,19 +1,19 @@
+use core::sync::atomic::{AtomicBool, Ordering};
+
+#[allow(unused)]
 use crate::{
-    functions::{help, last_two_keys, list_dir},
+    functions::{_help, _last_two_keys},
     gdt, hlt_loop, print, println, sleep,
 };
 use alloc::{
     string::{String, ToString},
-    vec::{self, Vec},
+    vec::Vec,
 };
-use core::arch::{asm, x86_64::_rdtsc};
+
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin::{self, Mutex};
-use x86_64::{
-    instructions::port::Port,
-    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
-};
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum InterruptIndex {
@@ -32,6 +32,8 @@ impl InterruptIndex {
 
 lazy_static! {
     static ref KEYS_PRESSED: Mutex<Vec<char>> = Mutex::new(Vec::new());
+    static ref INPUT_BUFFER: Mutex<Vec<char>> = Mutex::new(Vec::new());
+    static ref INPUT_READY: AtomicBool = AtomicBool::new(false);
 }
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -89,6 +91,8 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
     use spin::Mutex;
     use x86_64::instructions::port::Port;
+    #[allow(unused_mut)]
+    #[allow(unused_variables)]
     let mut keys_pressed: Vec<char> = Vec::new();
     lazy_static! {
         static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
@@ -110,38 +114,12 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
                 DecodedKey::Unicode(character) => {
-                    use alloc::vec;
-                    let mut keyspressed = KEYS_PRESSED.lock();
-                    keyspressed.push(character);
-                    let ltwo = last_two_keys(&mut keyspressed);
-                    let shutdown_combination: Vec<char> =
-                        vec!["S".parse().unwrap(), "D".parse().unwrap()];
-                    let help_combination: Vec<char> =
-                        vec!["L".parse().unwrap(), "P".parse().unwrap()];
-                    let list_combination: Vec<char> =
-                        vec!["L".parse().unwrap(), "I".parse().unwrap()];
-                    if ltwo.contains(&shutdown_combination[0])
-                        && ltwo.contains(&shutdown_combination[1])
-                    {
-                        unsafe { acpi_shutdown() }
-                    }
-
-                    if ltwo.contains(&help_combination[0]) && ltwo.contains(&help_combination[1]) {
-                        help();
-                    }
-                    if ltwo.contains(&list_combination[0]) && ltwo.contains(&list_combination[1]) {
-                        list_dir();
-                    }
-
-                    if character.to_string().as_str().trim_end() == "LShift" {
-                        print!("");
-                    } else if character.to_string().as_str().trim_end() == "l" {
-                        print!("Latest keys pressed ({} keys pressed): ", keyspressed.len());
-                        for key in &*keyspressed {
-                            print!("{}", key);
-                        }
+                    let mut buffer = INPUT_BUFFER.lock();
+                    if character.to_string() == "\n" {
+                        INPUT_READY.store(true, Ordering::SeqCst);
                     } else {
                         let _ = character.clone();
+                        buffer.push(character);
                         print!("{}", character.clone())
                     }
                 }
@@ -178,18 +156,21 @@ extern "x86-interrupt" fn page_fault_handler(
 ) {
     use x86_64::registers::control::Cr2;
 
-    println!("SERIOUS EXCEPTION: PAGE FAULT");
+    println!(
+        "SERIOUS EXCEPTION: PAGE FAULT (code segment is {})",
+        stack_frame.code_segment
+    );
     println!("Accessed Address : {:?}", Cr2::read());
     println!("Error Code: {:?}", error_code);
     println!("{:#?}", stack_frame);
     hlt_loop();
 }
 
-unsafe fn acpi_shutdown() {
-    println!("Shutting down in few seconds. Get ready!");
+pub unsafe fn acpi_shutdown() {
+    println!("[INFO] Shutting down in few seconds. Get ready!");
     use x86_64::instructions::port::Port;
-    println!("Performing shutdown using writing to ACPI control block. [ok]");
-    sleep(10000000);
+    println!("[OK - STATUS] Performing shutdown using writing to ACPI control block.");
+    sleep(1000000000);
     const PM1A_CNT_BLK: u16 = 0xB004;
     const SLP_TYPA: u16 = 0x2000;
     const SLP_EN: u16 = 1 << 13;
@@ -227,3 +208,16 @@ unsafe fn acpi_shutdown() {
         acpi_shutdown();
     }
 }  */
+pub fn input() -> String {
+    print!(">>>> ");
+    {
+        let mut buffer = INPUT_BUFFER.lock();
+        buffer.clear();
+    }
+    INPUT_READY.store(false, Ordering::SeqCst);
+    while !INPUT_READY.load(Ordering::SeqCst) {
+        x86_64::instructions::hlt();
+    }
+    let buffer = INPUT_BUFFER.lock();
+    buffer.iter().collect()
+}

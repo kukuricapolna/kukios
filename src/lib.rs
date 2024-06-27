@@ -9,14 +9,21 @@
 extern crate alloc;
 
 pub mod allocator;
+
 // pub mod functions;
 // pub mod ethernet;
 pub mod asm;
+pub mod basic_commands;
+pub mod disk;
+// pub mod drive_filesystem2;
+pub mod command_dispatcher;
 pub mod filesystem;
 pub mod functions;
 pub mod gdt;
 pub mod interrupts;
+pub mod mem_filesystem;
 pub mod memory;
+pub mod realsys;
 pub mod serial;
 pub mod task;
 pub mod vga_buffer;
@@ -46,8 +53,8 @@ pub fn hlt_loop() -> ! {
 pub fn sleep(ms: u64) {
     let cycles = ms * 1_000_000;
     let ticks = cycles / (1_000_000_000 / 50);
-    let mut s: Vec<u64> = Vec::new();
-    for x in 0..ticks {
+    let mut _s: Vec<u64> = Vec::new();
+    for _x in 0..ticks {
         // println!("Waiting: {x}");
         // s.push(x);
         unsafe { asm!("nop") }

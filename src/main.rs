@@ -6,20 +6,17 @@
 
 extern crate alloc;
 
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use bootloader::{entry_point, BootInfo};
-use core::arch::{asm, global_asm};
-use core::{panic::PanicInfo, time};
-use kukios::filesystem::FileSystem;
+use kukios::command_dispatcher::dispatch_command;
+use kukios::interrupts::input;
+// use kukios::realsys::FileSystem;
+use core::arch::asm;
+use core::panic::PanicInfo;
+use kukios::mem_filesystem::FileSystem;
 
 // use functions::{delay, shutdown};
-use kukios::{
-    memory::{self, BootInfoFrameAllocator},
-    task::{executor::Executor, keyboard, simple_executor::SimpleExecutor, Task},
-};
-use vga_buffer::print_something;
-use x86_64::structures::paging::Page;
 
 mod asm;
 mod functions;
@@ -31,21 +28,12 @@ mod vga_buffer;
 entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    // use kukios::memory::active_level_4_table;
-    use core::time::Duration;
     use kukios::allocator;
-    use kukios::functions::translate_to_string_utf8loosy;
     use kukios::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
-    // let ten_secs = Duration::from_secs(10);
-    println!("Delaying for 10 secs.");
-
-    // let device = MyDevice;
-
-    println!("Delayed.");
-    println!("Shutting down.");
-    // shutdown();
     println!("Kukiweb + intelligence = KukiOS{}", "!");
+    println!("Starting up KukiOS!");
+    println!("Welcome, Default User!");
 
     kukios::init();
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
@@ -54,25 +42,20 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("SERIOUS EXCEPTION: HEAP init failed");
     let heap_value = Box::new(41);
+    let mut buffer = [0u8; 1024];
+    let mut fs = FileSystem::new(1024, 128, 512);
+    println!("Creating default in-memory files.");
+    let file_inode = fs.create_file(1024, "readme.txt").unwrap();
+    fs.write_file(file_inode, "Welcome to Kukiweb KukiOS. This is a lincensed original Kukiweb product. We are planning to go open-source, but now it is not possible due to system-restrictions. We hope you enjoy our free system.".as_bytes());
+    println!("Every file neccesary created");
+
     println!("heap_value is located at {:p}", heap_value);
-    // let ten = time::Duration::new(10, 0).as_secs();
-
-    // unsafe {
-    //     asm!(
-    //         "mov  $0x58, %al",
-    //         "mov  $0xfee1dead, %ebx",
-    //         "mov  $0x28121969, %ecx",
-    //         "mov  $0x4321fedc, %edx",
-    //         "int  $0x80",
-    //     );
-    // }
-
     // let mut executor = Executor::new();
-
     // executor.spawn(Task::new(example_task()));
     // executor.spawn(Task::new(keyboard::print_keypresses()));
     // executor.spawn(Task::new(future))
     // executor.run();
+
     let mut vec = Vec::new();
     for i in 0..500 {
         vec.push(i)
@@ -89,16 +72,31 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         "Reference count is at value of {} now.",
         Rc::strong_count(&cloned_reference)
     );
-    let mut fs = FileSystem::new(1024, 128, 512);
-    let file_inode = fs.create_file(1024);
-    let data = b"Somebody may say love is everything, but that's wrong! KukiOS is everything!";
-    fs.write_file(file_inode, data);
+    println!("Now in command mode. For help, type help.");
+    loop {
+        let x = input();
+        dispatch_command(&x);
+        if x == "jailbreak" {
+            println!("Out of the command mode. Good luck soldier, you're on your own.");
+            break;
+        }
+    }
+    // let data = b"Somebody may say love is everything but thats wrong! KukiOS is everything!";
+    // fs.write_file(file_inode, data);
+    // let bytes_read = fs.read_file_by_name("test.txt", &mut buffer).unwrap();
+    // let x = translate_to_string_utf8loosy(&buffer[..bytes_read]);
+    // println!("{x}");
+    // let mut fs = FileSystem::new();
+    // fs.create_file("welcome.txt", b"Hello, World!").unwrap();
+    // let x = fs.read_file("welcome.txt").unwrap();
+    // let dat = vec_u8_to_string(x).unwrap();
+    // println!("{dat}");
 
-    let mut buffer = vec![0; data.len()];
-    let bytes_read = fs.read_file(file_inode, &mut buffer);
+    // let mut buffer = vec![0u8; 1024];
+    // let bytes_read = fs.read_file(file_inode, &mut buffer);
 
-    let translated_text = translate_to_string_utf8loosy(&buffer[..bytes_read]);
-    println!("Translated text: {translated_text}");
+    // let translated_text = translate_to_string_utf8loosy(&buffer[..bytes_read]);
+    // println!("Translated text: {translated_text}");
     // assert_eq!(&buffer[..bytes_read], data);
     // println!(
     // "File system operational. Written and read: {:?}",
@@ -223,12 +221,12 @@ where
         serial_println!("[ok]");
     }
 }
-async fn async_number() -> u32 {
+async fn _async_number() -> u32 {
     42
 }
 
-async fn example_task() {
-    let number = async_number().await;
+async fn _example_task() {
+    let number = _async_number().await;
     println!("The async number is {}", number);
 }
 
@@ -246,7 +244,7 @@ pub fn shutdown() {
     }
 }
 
-fn delay(seconds: u64) {
+fn _delay(seconds: u64) {
     const CYCLES_PER_SECOND: u64 = 2_900_000_000;
     let target = seconds * CYCLES_PER_SECOND;
     for _ in 0..target {
@@ -269,3 +267,9 @@ fn delay(seconds: u64) {
 //         None
 //     }
 // }
+fn _vec_u8_to_string(vec: Vec<u8>) -> Result<String, &'static str> {
+    match core::str::from_utf8(&vec) {
+        Ok(valid_str) => Ok(valid_str.to_string()),
+        Err(_) => Err("Invalid UTF-8 sequence."),
+    }
+}

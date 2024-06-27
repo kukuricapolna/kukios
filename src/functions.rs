@@ -1,17 +1,14 @@
 // use core::arch::{asm};
 
-use core::str::from_utf8;
-
 // use crate::filesystem::FileSystem;
 use alloc::{
-    ffi::CString,
     string::{String, ToString},
-    vec::{self, Vec},
+    vec::Vec,
 };
 
-use crate::{asm::get_current_directory, print, println};
+use crate::println;
 
-pub fn translate_to_string_utf8loosy(buffer: &[u8]) -> String {
+pub fn _translate_to_string_utf8loosy(buffer: &[u8]) -> String {
     String::from_utf8_lossy(buffer).to_string()
 }
 
@@ -81,7 +78,7 @@ pub fn translate_to_string_utf8loosy(buffer: &[u8]) -> String {
 //     }
 // }
 
-pub fn last_two_keys(keys: &mut Vec<char>) -> &[char] {
+pub fn _last_two_keys(keys: &mut Vec<char>) -> &[char] {
     if keys.len() >= 2 {
         &keys[keys.len() - 2..]
     } else {
@@ -100,12 +97,14 @@ pub fn last_two_keys(keys: &mut Vec<char>) -> &[char] {
 //     }
 // }
 
-pub fn help() {
+pub fn _help() {
     println!("Welcome to Kuki OS! \n\n We're thrilled to have you join our community. \n Whether you're a seasoned tech enthusiast or just getting started, we've crafted an intuitive and dynamic environment to make your computing experience smooth and enjoyable.\nFrom seamless navigation to powerful features, we've designed KukiOS with you in mind. \n\n So, welcome aboard! Feel free to explore, customize, and make this OS your own. Let's embark on this journey together, where innovation meets simplicity. Enjoy your stay!");
 }
 
+#[allow(unused)]
 const BUFFER_SIZE: usize = 1024;
 
+#[allow(unused)]
 struct DirEntry {
     inode: u64,
     offset: i64,
@@ -172,7 +171,10 @@ struct DirEntry {
 //     }
 // }
 
-pub fn list_dir() {
+pub fn _list_dir() {
+    println!("Reading test.txt");
+    let mut _buffer = [0u8; 1024];
+
     // use alloc::vec;
     // use core::str;
     // let dirname = "./";

@@ -1,5 +1,5 @@
 use alloc::alloc::{GlobalAlloc, Layout};
-use bump::BumpAllocator;
+
 use core::ptr::null_mut;
 use linked_list::LinkedListAllocator;
 use x86_64::{
