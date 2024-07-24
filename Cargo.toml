@@ -6,6 +6,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# fatfs = { version = "0.3.0", features = ["core_io"], default-features = false }
 uart_16550 = "0.2.0"
 x86_64 = "0.14.2"
 bootloader = { version = "0.9", features = ["map_physical_memory"] }
@@ -18,11 +19,11 @@ smoltcp = { version = "0.7.0", default-features = false, features = [
     "proto-ipv4",
     "proto-ipv6",
 ] }
+
+[build-dependencies]
+
 embedded-graphics = "0.7.0"
-# fatfs = { version = "0.3.6", features = ["core_io"], default-features = false }
-
-
-[profile.dev]
+ps2-mouse = "0.1.4"
 # panic = "abort"
 
 [profile.release]

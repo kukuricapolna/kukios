@@ -9,30 +9,64 @@ extern crate alloc;
 use alloc::string::{String, ToString};
 use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
 use bootloader::{entry_point, BootInfo};
+use core::arch::{asm, global_asm};
+use core::panic::PanicInfo;
 use kukios::command_dispatcher::dispatch_command;
 use kukios::interrupts::input;
-// use kukios::realsys::FileSystem;
-use core::arch::asm;
-use core::panic::PanicInfo;
-use kukios::mem_filesystem::FileSystem;
-
-// use functions::{delay, shutdown};
 
 mod asm;
 mod functions;
 mod serial;
 mod vga_buffer;
 
-// static HELLO: &[u8] = b"Hello World!";
-
 entry_point!(kernel_main);
+global_asm!(
+    "
+    my_adder:
+    mov eax, edi
+    add eax, esi
+    ret
+
+    get_current_directory:
+        push rbp
+        mov rbp, rsp
+        sub rsp, 256
+        mov rdi, rsp
+        mov rsi, 256
+        mov eax, 79
+        syscall
+        cmp rax, -1
+        je error
+        mov rdi, 1
+        mov rsi, rsp
+        mov rdx, rax
+        mov eax, 1
+        syscall
+        add rsp, 256
+        mov rsp, rbp
+        pop rbp
+        ret
+
+        error:
+            add rsp, 256
+            mov rsp, rbp
+            pop rbp
+            ret
+    "
+);
+
+extern "C" {
+    fn my_adder(a: u32, b: u32) -> u64;
+    fn get_current_directory() -> String;
+}
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
+    // cc::Build::new().file("add.s").compile("my-asm-lib");
     use kukios::allocator;
     use kukios::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
     println!("Kukiweb + intelligence = KukiOS{}", "!");
-    println!("Starting up KukiOS!");
+    // println!("Starting up KukiOS!");
     println!("Welcome, Default User!");
 
     kukios::init();
@@ -41,15 +75,30 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("SERIOUS EXCEPTION: HEAP init failed");
+    unsafe {
+        println!("Foo value is: {}", my_adder(1, 1));
+    }
     let heap_value = Box::new(41);
-    let mut buffer = [0u8; 1024];
-    let mut fs = FileSystem::new(1024, 128, 512);
-    println!("Creating default in-memory files.");
-    let file_inode = fs.create_file(1024, "readme.txt").unwrap();
-    fs.write_file(file_inode, "Welcome to Kukiweb KukiOS. This is a lincensed original Kukiweb product. We are planning to go open-source, but now it is not possible due to system-restrictions. We hope you enjoy our free system.".as_bytes());
-    println!("Every file neccesary created");
+    // let mutcargo u kfs = KukiSystem::new();
+    // let file_data = b"Hello, this is a test file!";
+    // let file_path = "/test.txt";
+    // match kfs.save(file_path, file_data) {
+    // Ok(_) => println!("File saved successfully!"),
+    // Err(err) => println!("Error saving file -> {err}"),
+    // }
+    // let buf_stream = BufStream::new("fstest.img");
+    // let fs = fatfs::FileSystem::new(buf_stream, fatfs::FsOptions::new())?;
+    // let root_dir = fs.root_dir();
+    // let mut file = root_dir.create_file("test.txt")?;
+    // file.write_all(b"Hello World!");
+    // let mut buffer = [0u8; 1024];
+    // let mut fs = FileSystem::new(1024, 128, 512);
+    // println!("Creating default in-memory files.");
+    // let file_inode = fs.create_file(1024, "readme.txt").unwrap();
+    // fs.write_file(file_inode, "Welcome to Kukiweb KukiOS. This is a lincensed original Kukiweb product. We are planning to go open-source, but now it is not possible due to system-restrictions. We hope you enjoy our free system.".as_bytes());
+    // println!("Every file neccesary created");
 
-    println!("heap_value is located at {:p}", heap_value);
+    // println!("heap_value is located at {:p}", heap_value);
     // let mut executor = Executor::new();
     // executor.spawn(Task::new(example_task()));
     // executor.spawn(Task::new(keyboard::print_keypresses()));
@@ -60,24 +109,34 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     for i in 0..500 {
         vec.push(i)
     }
-    println!("vec is located at {:p}", vec.as_slice());
+    // println!("vec is located at {:p}", vec.as_slice());
     let reference_counted = Rc::new(vec![1, 2, 3]);
     let cloned_reference = reference_counted.clone();
-    println!(
-        "Current reference count is at value of {}",
-        Rc::strong_count(&cloned_reference)
-    );
+    // println!(
+    // "Current reference count is at value of {}",
+    // Rc::strong_count(&cloned_reference)
+    // );
     core::mem::drop(reference_counted);
-    println!(
-        "Reference count is at value of {} now.",
-        Rc::strong_count(&cloned_reference)
-    );
+    // println!(
+    // "Reference count is at value of {} now.",
+    // Rc::strong_count(&cloned_reference)
+    // );
     println!("Now in command mode. For help, type help.");
     loop {
         let x = input();
         dispatch_command(&x);
         if x == "jailbreak" {
             println!("Out of the command mode. Good luck soldier, you're on your own.");
+            unsafe {
+                let data = get_current_directory();
+                println!("Dir: {data:?}")
+            }
+
+            let mut xyz: i64 = 0;
+            // unsafe {
+            //     xyz = my_adder(1, 1);
+            // }
+            println!("The result of 1+1 is -> {xyz}");
             break;
         }
     }
@@ -123,6 +182,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     kukios::hlt_loop();
 }
 
+// extern "C" {
+//     fn my_adder(a: i64, b: i64) -> i64;
+// }
+
 #[no_mangle]
 // pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 //     println!("Welcome user! Kukiweb + intelligence = KukiOS{}", "!");
@@ -164,8 +227,15 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    use kukios::{interrupts::acpi_shutdown, sleep};
+
     println!("[fail]");
-    println!("ERROR: KukiOS panicked: {}", info);
+    println!(
+        "ERROR: KukiOS panicked: {}. Preparing the system to shutdown.",
+        info
+    );
+    sleep(1000000000);
+    unsafe { acpi_shutdown() }
     kukios::hlt_loop();
 }
 

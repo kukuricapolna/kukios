@@ -1,10 +1,7 @@
 use core::arch::global_asm;
 
 global_asm!(
-    r#"
-    .global get_current_directory
-    .section .text
-
+    "
     get_current_directory:
         push rbp
         mov rbp, rsp
@@ -31,10 +28,10 @@ global_asm!(
         pop rbp
         ret
 
-    "#
+    "
 );
 extern "C" {
-    pub fn _get_current_directory();
+    fn get_current_directory();
 }
 // global_asm!(r#"")
 

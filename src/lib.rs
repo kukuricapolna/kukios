@@ -9,10 +9,14 @@
 extern crate alloc;
 
 pub mod allocator;
-
+// pub mod kukisys;
+// pub mod network;
+// pub mod request;
+// pub mod utils;
 // pub mod functions;
 // pub mod ethernet;
 pub mod asm;
+pub mod assembler;
 pub mod basic_commands;
 pub mod disk;
 // pub mod drive_filesystem2;

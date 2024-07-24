@@ -10,10 +10,17 @@ use alloc::{
     vec::Vec,
 };
 
+use conquer_once::spin::Spin;
+use futures_util::future::Lazy;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
+
 use spin::{self, Mutex};
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::{
+    instructions::port::PortReadOnly,
+    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
+};
+
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum InterruptIndex {
@@ -54,6 +61,7 @@ lazy_static! {
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
         idt.page_fault.set_handler_fn(page_fault_handler);
+
         idt
     };
 }
@@ -170,7 +178,7 @@ pub unsafe fn acpi_shutdown() {
     println!("[INFO] Shutting down in few seconds. Get ready!");
     use x86_64::instructions::port::Port;
     println!("[OK - STATUS] Performing shutdown using writing to ACPI control block.");
-    sleep(1000000000);
+    sleep(100000000);
     const PM1A_CNT_BLK: u16 = 0xB004;
     const SLP_TYPA: u16 = 0x2000;
     const SLP_EN: u16 = 1 << 13;

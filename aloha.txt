@@ -143,6 +143,7 @@ impl FileSystem {
         let block_size = self.superblock.block_size as usize;
         let data_size = inode.data_size as usize;
         let mut offset = 0;
+        let mut total_bytes_read = 0;
         for &block_index in &inode.blocks {
             if offset >= buffer.len() {
                 break;
