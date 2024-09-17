@@ -20,45 +20,45 @@ mod serial;
 mod vga_buffer;
 
 entry_point!(kernel_main);
-global_asm!(
-    "
-    my_adder:
-    mov eax, edi
-    add eax, esi
-    ret
+// global_asm!(
+//     "
+//     my_adder:
+//     mov eax, edi
+//     add eax, esi
+//     ret
 
-    get_current_directory:
-        push rbp
-        mov rbp, rsp
-        sub rsp, 256
-        mov rdi, rsp
-        mov rsi, 256
-        mov eax, 79
-        syscall
-        cmp rax, -1
-        je error
-        mov rdi, 1
-        mov rsi, rsp
-        mov rdx, rax
-        mov eax, 1
-        syscall
-        add rsp, 256
-        mov rsp, rbp
-        pop rbp
-        ret
+//     get_current_directory:
+//         push rbp
+//         mov rbp, rsp
+//         sub rsp, 256
+//         mov rdi, rsp
+//         mov rsi, 256
+//         mov eax, 79
+//         syscall
+//         cmp rax, -1
+//         je error
+//         mov rdi, 1
+//         mov rsi, rsp
+//         mov rdx, rax
+//         mov eax, 1
+//         syscall
+//         add rsp, 256
+//         mov rsp, rbp
+//         pop rbp
+//         ret
 
-        error:
-            add rsp, 256
-            mov rsp, rbp
-            pop rbp
-            ret
-    "
-);
+//         error:
+//             add rsp, 256
+//             mov rsp, rbp
+//             pop rbp
+//             ret
+//     "
+// );
 
-extern "C" {
-    fn my_adder(a: u32, b: u32) -> u64;
-    fn get_current_directory() -> String;
-}
+// extern "C" {
+//     fn my_adder(a: u32, b: u32) -> u64;
+//     fn get_current_directory() -> String;
+// }
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // cc::Build::new().file("add.s").compile("my-asm-lib");
@@ -75,9 +75,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("SERIOUS EXCEPTION: HEAP init failed");
-    unsafe {
-        println!("Foo value is: {}", my_adder(1, 1));
-    }
+    // unsafe {
+    //     println!("Foo value is: {}", my_adder(1, 1));
+    // }
     let heap_value = Box::new(41);
     // let mutcargo u kfs = KukiSystem::new();
     // let file_data = b"Hello, this is a test file!";
@@ -127,10 +127,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         dispatch_command(&x);
         if x == "jailbreak" {
             println!("Out of the command mode. Good luck soldier, you're on your own.");
-            unsafe {
-                let data = get_current_directory();
-                println!("Dir: {data:?}")
-            }
+            // unsafe {
+            //     let data = get_current_directory();
+            //     println!("Dir: {data:?}")
+            // }
 
             let mut xyz: i64 = 0;
             // unsafe {
