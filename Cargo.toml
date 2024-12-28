@@ -19,6 +19,7 @@ smoltcp = { version = "0.7.0", default-features = false, features = [
     "proto-ipv4",
     "proto-ipv6",
 ] }
+futures = { version = "0.3", default-features = false }
 
 [build-dependencies]
 

@@ -9,27 +9,23 @@
 extern crate alloc;
 
 pub mod allocator;
-// pub mod kukisys;
-// pub mod network;
-// pub mod request;
-// pub mod utils;
-// pub mod functions;
-// pub mod ethernet;
-pub mod asm;
-pub mod assembler;
-pub mod basic_commands;
-pub mod disk;
-// pub mod drive_filesystem2;
+mod asm;
+mod assembler;
+mod basic_commands;
 pub mod command_dispatcher;
-pub mod filesystem;
-pub mod functions;
-pub mod gdt;
+mod disk;
+mod filesystem;
+mod functions;
+mod gdt;
 pub mod interrupts;
-pub mod mem_filesystem;
+pub mod kafs;
+mod mem_filesystem;
 pub mod memory;
-pub mod realsys;
-pub mod serial;
-pub mod task;
+mod www;
+
+mod realsys;
+mod serial;
+mod task;
 pub mod vga_buffer;
 
 use core::{arch::asm, panic::PanicInfo};

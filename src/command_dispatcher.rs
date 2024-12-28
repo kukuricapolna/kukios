@@ -1,13 +1,15 @@
-use core::arch::global_asm;
-
 use crate::{
-    assembler::*,
     basic_commands::white_space_divider,
     interrupts::{acpi_shutdown, input},
     mem_filesystem::FileSystem,
-    println,
+    println, sleep,
 };
-use alloc::{collections::BTreeMap, format, string::String, vec, vec::Vec};
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use lazy_static::lazy_static;
 
 use spin::Mutex;
@@ -24,6 +26,8 @@ lazy_static! {
         m.insert("clear", clear as fn());
         m.insert("kas", kas as fn());
         m.insert("ras", run_assembly as fn());
+        m.insert("load_animation", load_animation as fn());
+        m.insert("yirsp", yirsp as fn());
         Mutex::new(m)
     };
     static ref FILESYSTEM: Mutex<FileSystem> = Mutex::new(FileSystem::new(1024, 128, 512));
@@ -125,6 +129,37 @@ pub fn uname() {
     println!("KukiOS: 0.1.0");
 }
 
+fn load_animation() {
+    let wait_ms: u64 = 7500000;
+    println!("[==                  ]");
+    sleep(wait_ms);
+    println!("[====                ]");
+    sleep(wait_ms);
+    println!("[=====               ]");
+    sleep(wait_ms);
+    println!("[======              ]");
+    sleep(wait_ms);
+    println!("[=======             ]");
+    sleep(wait_ms);
+    println!("[========            ]");
+    sleep(wait_ms);
+    println!("[=========           ]");
+    sleep(wait_ms);
+    println!("[==========          ]");
+    sleep(wait_ms);
+    println!("[===========         ]");
+    sleep(wait_ms);
+    println!("[=============       ]");
+    sleep(wait_ms);
+    println!("[===============     ]");
+    sleep(wait_ms);
+    println!("[=================== ]");
+    sleep(wait_ms);
+    println!("[====================]");
+    sleep(wait_ms);
+    clear();
+}
+
 fn echo() {
     println!("");
     println!("What to echo?");
@@ -159,4 +194,49 @@ fn kas() {
     // } else {
     //     println!("Assembly file {assembly_file} not found!");
     // }
+}
+
+fn yirsp() {
+    println!("Y.I.R.S.P. - Your Interactive Reading Service Provider!");
+    println!("Enter the name of the file you want to read: ");
+    let mut buffer = [0u8; 1024];
+    let mut current_limit: u32 = 20;
+    let fs = FILESYSTEM.lock();
+    let filename = input();
+    println!("Opening {}", filename.trim_end());
+    clear();
+    if let Some(bytes_read) = fs.read_file_by_name(filename.trim_end(), &mut buffer) {
+        let data = core::str::from_utf8(&buffer[..bytes_read]).unwrap();
+        println!("============================================");
+        loop {
+            println!("{}", first_chars_get(data, current_limit));
+            let command = input();
+            if command == "d" {
+                current_limit += 20;
+                clear();
+            }
+            if command == "u" {
+                if current_limit <= 0 {
+                    println!("Sorry! Cannot go up anymore!")
+                } else {
+                    current_limit -= 20;
+                    clear();
+                }
+            }
+            if command == "q" {
+                break;
+            }
+        }
+    } else {
+        println!("File not found: {filename}");
+    }
+    println!("=============================================");
+}
+
+fn first_chars_get(txt: &str, n: u32) -> String {
+    let mut final_str = String::new();
+    for i in 0..n {
+        final_str.push_str(txt.chars().nth(i as usize).unwrap().to_string().as_str());
+    }
+    final_str
 }
