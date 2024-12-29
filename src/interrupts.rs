@@ -28,6 +28,11 @@ pub enum InterruptIndex {
     Keyboard,
 }
 
+pub enum Helper {
+    Empty,
+    Is(String),
+}
+
 impl InterruptIndex {
     fn as_u8(self) -> u8 {
         self as u8
@@ -216,8 +221,12 @@ pub unsafe fn acpi_shutdown() {
         acpi_shutdown();
     }
 }  */
-pub fn input() -> String {
-    print!(">>>> ");
+pub fn input(helper: Helper) -> String {
+    match helper {
+        Helper::Empty => print!(">>>> "),
+        Helper::Is(value) => print!("({}) >>>> ", value),
+    }
+
     {
         let mut buffer = INPUT_BUFFER.lock();
         buffer.clear();

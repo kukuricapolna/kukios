@@ -1,6 +1,6 @@
 use crate::{
     basic_commands::white_space_divider,
-    interrupts::{acpi_shutdown, input},
+    interrupts::{acpi_shutdown, input, Helper},
     mem_filesystem::FileSystem,
     println, sleep,
 };
@@ -46,7 +46,7 @@ fn clear() {
 }
 
 fn welcome() {
-    let name = input();
+    let name = input(crate::interrupts::Helper::Empty);
     println!("Hello, {name}!")
 }
 
@@ -60,10 +60,10 @@ fn create_file() {
     let mut _files = FILES.lock();
     white_space_divider(1);
     println!("Enter file name: ");
-    let file_name = input();
+    let file_name = input(crate::interrupts::Helper::Empty);
     white_space_divider(1);
     println!("Enter file's text: ");
-    let content = input();
+    let content = input(crate::interrupts::Helper::Empty);
     let x = fs.create_file(1024, file_name.as_str()).unwrap();
     fs.write_file(x, content.trim().as_bytes());
     white_space_divider(1);
@@ -75,7 +75,7 @@ fn create_file() {
 fn run_assembly() {
     let mut fs = FILESYSTEM.lock();
     let mut buffer = vec![0; 1024];
-    let file_name = input();
+    let file_name = input(crate::interrupts::Helper::Empty);
     if let Some(size) = fs.read_file_by_name(&file_name, &mut buffer) {
         buffer.truncate(size);
         // Some(buffer)
@@ -96,7 +96,7 @@ fn open_file() {
     let mut _files = FILES.lock();
     white_space_divider(1);
     println!("Enter file name to open: ");
-    let file_name = input();
+    let file_name = input(crate::interrupts::Helper::Empty);
     println!("Opening {file_name}....");
     if let Some(bytes_read) = fs.read_file_by_name(file_name.as_str(), &mut buffer) {
         let data = core::str::from_utf8(&buffer[..bytes_read]).unwrap();
@@ -163,10 +163,10 @@ fn load_animation() {
 fn echo() {
     println!("");
     println!("What to echo?");
-    let echo = input();
+    let echo = input(crate::interrupts::Helper::Empty);
     println!("");
     println!("Where to echo? (file-which, here)");
-    let whereto = input();
+    let whereto = input(crate::interrupts::Helper::Empty);
 }
 
 fn kas() {
@@ -200,19 +200,21 @@ fn yirsp() {
     println!("Y.I.R.S.P. - Your Interactive Reading Service Provider!");
     println!("Enter the name of the file you want to read: ");
     let mut buffer = [0u8; 1024];
-    let mut current_limit: u32 = 20;
+    let mut current_limit: u32 = 0;
+    let mut upper_limit = 20;
     let fs = FILESYSTEM.lock();
-    let filename = input();
+    let filename = input(crate::interrupts::Helper::Empty);
     println!("Opening {}", filename.trim_end());
     clear();
     if let Some(bytes_read) = fs.read_file_by_name(filename.trim_end(), &mut buffer) {
         let data = core::str::from_utf8(&buffer[..bytes_read]).unwrap();
         println!("============================================");
         loop {
-            println!("{}", first_chars_get(data, current_limit));
-            let command = input();
+            println!("{}", first_chars_get(data, current_limit, upper_limit));
+            let command = input(Helper::Is("Y.I.R.S.P.".to_string()));
             if command == "d" {
                 current_limit += 20;
+                upper_limit += 20;
                 clear();
             }
             if command == "u" {
@@ -220,6 +222,7 @@ fn yirsp() {
                     println!("Sorry! Cannot go up anymore!")
                 } else {
                     current_limit -= 20;
+                    upper_limit -= 20;
                     clear();
                 }
             }
@@ -233,9 +236,9 @@ fn yirsp() {
     println!("=============================================");
 }
 
-fn first_chars_get(txt: &str, n: u32) -> String {
+fn first_chars_get(txt: &str, from: u32, to: u32) -> String {
     let mut final_str = String::new();
-    for i in 0..n {
+    for i in from..to {
         final_str.push_str(txt.chars().nth(i as usize).unwrap().to_string().as_str());
     }
     final_str

@@ -64,7 +64,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     println!("Now in command mode. For help, type help.");
     loop {
-        let x = input();
+        let x = input(kukios::interrupts::Helper::Empty);
         dispatch_command(&x);
         if x == "jailbreak" {
             println!("Out of the command mode. Good luck soldier, you're on your own.");
