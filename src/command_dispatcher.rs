@@ -6,6 +6,7 @@ use crate::{
 };
 use alloc::{
     collections::BTreeMap,
+    format,
     string::{String, ToString},
     vec,
     vec::Vec,
@@ -28,6 +29,7 @@ lazy_static! {
         m.insert("ras", run_assembly as fn());
         m.insert("load_animation", load_animation as fn());
         m.insert("yirsp", yirsp as fn());
+        m.insert("write_debug", write_debug as fn());
         Mutex::new(m)
     };
     static ref FILESYSTEM: Mutex<FileSystem> = Mutex::new(FileSystem::new(1024, 128, 512));
@@ -96,7 +98,7 @@ fn open_file() {
     let mut _files = FILES.lock();
     white_space_divider(1);
     println!("Enter file name to open: ");
-    let file_name = input(crate::interrupts::Helper::Empty);
+    let file_name = input(Helper::Is("open_file".to_string()));
     println!("Opening {file_name}....");
     if let Some(bytes_read) = fs.read_file_by_name(file_name.as_str(), &mut buffer) {
         let data = core::str::from_utf8(&buffer[..bytes_read]).unwrap();
@@ -196,14 +198,27 @@ fn kas() {
     // }
 }
 
+fn write_debug() {
+    println!("THIS IS DEBUG WRITE FUNCTION THAT OCCUPIES A LOT MEMORY. DO YOU WISH TO RUN THIS FUNCTION? (n/y)");
+    let command = input(Helper::Is("write_debug".to_string()));
+    if command == "y" {
+        let mut fs = FILESYSTEM.lock();
+        let lorem_ipsum = format!("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?");
+        let file = fs.create_file(1024, "debug.txt").unwrap();
+        fs.write_file(file, lorem_ipsum.as_bytes());
+
+        println!("OK! Writing lorem ipsum file - debug.txt");
+    }
+}
+
 fn yirsp() {
     println!("Y.I.R.S.P. - Your Interactive Reading Service Provider!");
     println!("Enter the name of the file you want to read: ");
     let mut buffer = [0u8; 1024];
     let mut current_limit: u32 = 0;
-    let mut upper_limit = 20;
+    let mut upper_limit = 200;
     let fs = FILESYSTEM.lock();
-    let filename = input(crate::interrupts::Helper::Empty);
+    let filename = input(Helper::Is("Y.I.R.S.P.".to_string()));
     println!("Opening {}", filename.trim_end());
     clear();
     if let Some(bytes_read) = fs.read_file_by_name(filename.trim_end(), &mut buffer) {
@@ -213,16 +228,20 @@ fn yirsp() {
             println!("{}", first_chars_get(data, current_limit, upper_limit));
             let command = input(Helper::Is("Y.I.R.S.P.".to_string()));
             if command == "d" {
-                current_limit += 20;
-                upper_limit += 20;
+                if data.len() as u32 >= upper_limit || data.len() as u32 >= current_limit {
+                    println!("Sorry cannot go down anymore!");
+                } else {
+                    current_limit += 200;
+                    upper_limit += 200;
+                }
                 clear();
             }
             if command == "u" {
                 if current_limit <= 0 {
                     println!("Sorry! Cannot go up anymore!")
                 } else {
-                    current_limit -= 20;
-                    upper_limit -= 20;
+                    current_limit -= 200;
+                    upper_limit -= 200;
                     clear();
                 }
             }
