@@ -35,10 +35,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("SERIOUS EXCEPTION: HEAP init failed");
-    dispatch_command("load_animation");
-    dispatch_command("load_animation");
-    dispatch_command("load_animation");
-    dispatch_command("load_animation");
+    // dispatch_command("load_animation");
+    // dispatch_command("load_animation");
+    // dispatch_command("load_animation");
+    // dispatch_command("load_animation");
     dispatch_command("load_animation");
 
     println!("Written to disk test data (all ones - sector 1, 512 l).");

@@ -1,8 +1,10 @@
 use crate::{
     basic_commands::white_space_divider,
+    builtin::{chg_fg_bg, print_colorful, print_current_colors_debug},
     interrupts::{acpi_shutdown, input, Helper},
     mem_filesystem::FileSystem,
-    println, sleep,
+    print, println, sleep,
+    vga_buffer::Color,
 };
 use alloc::{
     collections::BTreeMap,
@@ -30,6 +32,9 @@ lazy_static! {
         m.insert("load_animation", load_animation as fn());
         m.insert("yirsp", yirsp as fn());
         m.insert("write_debug", write_debug as fn());
+        m.insert("change_color", change_color as fn());
+        m.insert("gbcd", print_current_colors_debug as fn());
+        m.insert("color_print_debug", print_debug_colors as fn());
         Mutex::new(m)
     };
     static ref FILESYSTEM: Mutex<FileSystem> = Mutex::new(FileSystem::new(1024, 128, 512));
@@ -261,4 +266,38 @@ fn first_chars_get(txt: &str, from: u32, to: u32) -> String {
         final_str.push_str(txt.chars().nth(i as usize).unwrap().to_string().as_str());
     }
     final_str
+}
+
+fn change_color() {
+    println!("Enter new colors in this order: fg,bg - quit");
+    let fg_bg = input(Helper::Is("change_color/fg_bg".to_string()));
+    let fg_bg_order = fg_bg.split(",").collect::<Vec<&str>>();
+    let fg = fg_bg_order[0];
+    let bg = fg_bg_order[1];
+    chg_fg_bg(fg, bg);
+    clear();
+}
+
+fn print_debug_colors() {
+    println!("[OK] Start of function");
+    println!("[INFO] BEFORE: ");
+    println!("THIS IS COLORFUL!");
+    println!("[INFO] NOW: ");
+
+    print_colorful("T", "Blue", "black");
+    print_colorful("H", "Black", "black");
+    print_colorful("I", "Green", "black");
+    print_colorful("S", "Cyan", "black");
+    print_colorful(" ", "Red", "black");
+    print_colorful("IS", "Magenta", "black");
+    print_colorful("", "Brown", "black");
+    print_colorful("C", "LightGray", "black");
+    print_colorful("O", "DarkGray", "black");
+    print_colorful("L", "LightBlue", "black");
+    print_colorful("O", "LightGreen", "black");
+    print_colorful("R", "LightCyan", "black");
+    print_colorful("F", "LightRed", "black");
+    print_colorful("U", "Pink", "black");
+    print_colorful("L", "Yellow", "black");
+    print_colorful("!", "White", "black");
 }

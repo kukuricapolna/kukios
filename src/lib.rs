@@ -12,6 +12,7 @@ pub mod allocator;
 mod asm;
 mod assembler;
 mod basic_commands;
+pub mod builtin;
 pub mod command_dispatcher;
 mod disk;
 mod filesystem;
@@ -21,8 +22,6 @@ pub mod interrupts;
 pub mod kafs;
 mod mem_filesystem;
 pub mod memory;
-mod www;
-
 mod realsys;
 mod serial;
 mod task;

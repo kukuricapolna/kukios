@@ -1,3 +1,4 @@
+use alloc::string::{String, ToString};
 use core::fmt::{self, Write};
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -35,7 +36,7 @@ pub enum Color {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
-struct ColorCode(u8);
+pub struct ColorCode(u8);
 
 impl ColorCode {
     fn new(foreground: Color, background: Color) -> ColorCode {
@@ -85,6 +86,10 @@ impl Writer {
             }
         }
     }
+    pub fn change_fg_bg(&mut self, fg: Color, bg: Color) {
+        self.color_code = ColorCode::new(fg, bg);
+    }
+
     fn new_line(&mut self) {
         /* TODO */
         for row in 1..BUFFER_HEIGHT {
