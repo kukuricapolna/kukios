@@ -118,43 +118,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 // }
 
 #[no_mangle]
-// pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
-//     println!("Welcome user! Kukiweb + intelligence = KukiOS{}", "!");
-//     kukios::init();
-//     use x86_64::registers::control::Cr3;
-//     let (level_4_page, _) = Cr3::read();
-//     println!("Level 4 page table at {:?}", level_4_page.start_address());
-//     // unsafe {
-//     //     *(0xdeadbeef as *mut u8) = 42;
-//     // }
-
-//     // fn stack_overflow() {
-//     //     stack_overflow();
-//     // }
-//     // stack_overflow();
-//     // x86_64::instructions::interrupts::int3();
-//     // let ptr = 0x206476 as *mut u8;
-//     // unsafe {
-//     //     let x = *ptr;
-//     // }
-//     // println!("read worked");
-//     // unsafe {
-//     //     *ptr = 42;
-//     // }
-//     // println!("write worked");
-
-//     #[cfg(test)]
-//     test_main();
-
-//     #[cfg(test)]
-//     println!("Status: [ok]");
-//     print_something();
-//     kukios::hlt_loop();
-//     // loop {
-//     //     use kukios::print;
-//     //     print!("-")
-//     // }
-// }
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {

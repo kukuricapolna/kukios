@@ -1,25 +1,23 @@
+use alloc::collections::BTreeMap;
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use crate::{command_dispatcher::clear, info, misc::vec_to_str};
 #[allow(unused)]
 use crate::{
     functions::{_help, _last_two_keys},
     gdt, hlt_loop, print, println, sleep,
 };
 use alloc::{
+    borrow::ToOwned,
     string::{String, ToString},
     vec::Vec,
 };
 
-use conquer_once::spin::Spin;
-use futures_util::future::Lazy;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 
 use spin::{self, Mutex};
-use x86_64::{
-    instructions::port::PortReadOnly,
-    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
-};
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -46,6 +44,7 @@ lazy_static! {
     static ref KEYS_PRESSED: Mutex<Vec<char>> = Mutex::new(Vec::new());
     static ref INPUT_BUFFER: Mutex<Vec<char>> = Mutex::new(Vec::new());
     static ref INPUT_READY: AtomicBool = AtomicBool::new(false);
+    pub static ref HISTORY: Mutex<BTreeMap<String, usize>> = Mutex::new(BTreeMap::new());
 }
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -123,20 +122,45 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }
 
+    /*
+    if key == pc_keyboard::KeyCode::Backspace {
+        println!("IT IS BACKSPACE!");
+        let num_of_els_to_rem = 1;
+        let new_len = buffer.len() - num_of_els_to_rem;
+        buffer.truncate(new_len);
+    }
+    */
+
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
                 DecodedKey::Unicode(character) => {
                     let mut buffer = INPUT_BUFFER.lock();
+                    let mut history = HISTORY.lock();
                     if character.to_string() == "\n" {
                         INPUT_READY.store(true, Ordering::SeqCst);
+                        history.insert(vec_to_str(buffer.to_owned()), buffer.len());
+                    } else if character.to_string() == "\x08" {
+                        info!("OK!");
+                        let buff_len = buffer.len(); //FIXME: no toto hej
+                        info!("Buffer size: {buff_len}, reducing to: {}", buff_len - 1);
+                        if buff_len != 1 {
+                            buffer.remove(buff_len - 1);
+                            clear();
+                            // print!(">>>");
+                            for letter in buffer.to_owned() {
+                                print!("{letter}");
+                            }
+                        } else {
+                            info!("Buffer is already empty!");
+                        }
                     } else {
                         let _ = character.clone();
                         buffer.push(character);
                         print!("{}", character.clone())
                     }
                 }
-                DecodedKey::RawKey(key) => print!("{:?}", key),
+                DecodedKey::RawKey(_key) => (), //{print!("Special: {:?}", key)},
             }
         }
     }
@@ -170,19 +194,19 @@ extern "x86-interrupt" fn page_fault_handler(
     use x86_64::registers::control::Cr2;
 
     println!(
-        "SERIOUS EXCEPTION: PAGE FAULT (code segment is {})",
+        "SERIOUS EXCEPTION: PAGE FAULT (code segment = {})",
         stack_frame.code_segment
     );
     println!("Accessed Address : {:?}", Cr2::read());
     println!("Error Code: {:?}", error_code);
-    println!("{:#?}", stack_frame);
+    println!("Fault info -> {:#?}", stack_frame);
     hlt_loop();
 }
 
 pub unsafe fn acpi_shutdown() {
-    println!("[INFO] Shutting down in few seconds. Get ready!");
+    info!("Shutting down in few seconds. Get ready!");
     use x86_64::instructions::port::Port;
-    println!("[OK - STATUS] Performing shutdown using writing to ACPI control block.");
+    info!("Performing shutdown using writing to ACPI control block.");
     sleep(100000000);
     const PM1A_CNT_BLK: u16 = 0xB004;
     const SLP_TYPA: u16 = 0x2000;

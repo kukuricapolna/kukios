@@ -22,6 +22,7 @@ pub mod interrupts;
 pub mod kafs;
 mod mem_filesystem;
 pub mod memory;
+mod misc;
 mod realsys;
 mod serial;
 mod task;

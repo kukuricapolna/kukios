@@ -23,17 +23,26 @@ pub fn chg_fg_bg(fg: &str, bg: &str) {
     writer.change_fg_bg(final_fg, final_bg);
 }
 
-pub fn println_colorful(t: &str, f: Color, b: Color) {
-    let mut writer = WRITER.lock();
-    writer.change_fg_bg(f, b);
+pub fn println_colorful(t: &str, f: &str, b: &str) {
+    chg_fg_bg(f, b);
+    // println!("Changed.");
+    // println!("Printing....");
     println!("{t}");
-    writer.change_fg_bg(Color::White, Color::Black);
+    // println!("Printed....");
+    // println!("Changing to fallback colors");
+    chg_fg_bg("white", "black");
 }
 
 pub fn print_colorful(t: &str, f: &str, b: &str) {
+    // println!("Changing colors to {} and {}", f, b);
     chg_fg_bg(f, b);
+    // println!("Changed.");
+    // println!("Printing....");
     print!("{t}");
+    // println!("Printed....");
+    // println!("Changing to fallback colors");
     chg_fg_bg("white", "black");
+    // println!("Changed");
 }
 
 pub fn print_current_colors_debug() {

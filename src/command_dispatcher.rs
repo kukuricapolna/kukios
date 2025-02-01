@@ -3,8 +3,8 @@ use crate::{
     builtin::{chg_fg_bg, print_colorful, print_current_colors_debug},
     interrupts::{acpi_shutdown, input, Helper},
     mem_filesystem::FileSystem,
-    print, println, sleep,
-    vga_buffer::Color,
+    misc::{print_history, view_logo},
+    println, sleep,
 };
 use alloc::{
     collections::BTreeMap,
@@ -35,6 +35,9 @@ lazy_static! {
         m.insert("change_color", change_color as fn());
         m.insert("gbcd", print_current_colors_debug as fn());
         m.insert("color_print_debug", print_debug_colors as fn());
+        m.insert("test_colors", test_colors as fn());
+        m.insert("neoget", view_logo as fn());
+        m.insert("future", print_history as fn());
         Mutex::new(m)
     };
     static ref FILESYSTEM: Mutex<FileSystem> = Mutex::new(FileSystem::new(1024, 128, 512));
@@ -48,7 +51,7 @@ fn help() {
     println!("====================================================================");
 }
 
-fn clear() {
+pub fn clear() {
     let _whitespaces = white_space_divider(40);
 }
 
@@ -300,4 +303,8 @@ fn print_debug_colors() {
     print_colorful("U", "Pink", "black");
     print_colorful("L", "Yellow", "black");
     print_colorful("!", "White", "black");
+}
+
+fn test_colors() {
+    print_colorful("TEST", "blue", "black");
 }

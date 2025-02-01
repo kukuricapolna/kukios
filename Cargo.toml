@@ -69,6 +69,8 @@ test-args = [
     "stdio",
     "-display",
     "none",
+    "-vga",
+    "std",
 ]
 test-success-exit-code = 33
 test-timeout = 300 # secs
