@@ -17,7 +17,13 @@ use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 
 use spin::{self, Mutex};
+use x86_64::instructions::port::Port;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+
+// Mouse state for GUI integration
+static mut MOUSE_X: i32 = 160;
+static mut MOUSE_Y: i32 = 100;
+static mut MOUSE_LEFT_DOWN: bool = false;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -103,6 +109,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
     use spin::Mutex;
     use x86_64::instructions::port::Port;
+
     #[allow(unused_mut)]
     #[allow(unused_variables)]
     let mut keys_pressed: Vec<char> = Vec::new();
@@ -218,6 +225,65 @@ pub unsafe fn acpi_shutdown() {
     port.write(shutdown_cmd);
     let mut port_604 = Port::new(0x604);
     port_604.write(0x2000u16);
+}
+
+// --- PS/2 Mouse Initialization and IRQ Handler ---
+
+/// Initialize PS/2 mouse (call this during OS startup)
+pub fn init_ps2_mouse() {
+    let mut command_port = Port::new(0x64);
+    let mut data_port = Port::new(0x60);
+
+    unsafe {
+        // Enable the auxiliary device (mouse)
+        command_port.write(0xA8u8);
+
+        // Enable interrupts for mouse
+        command_port.write(0x20u8);
+        let status: u8 = data_port.read();
+        command_port.write(0x60u8);
+        data_port.write(status | 0x02);
+
+        // Tell mouse to use default settings
+        command_port.write(0xD4u8);
+        data_port.write(0xF6u8);
+        let _ack: u8 = data_port.read();
+
+        // Enable mouse
+        command_port.write(0xD4u8);
+        data_port.write(0xF4u8);
+        let _ack2: u8 = data_port.read();
+    }
+}
+
+/// Mouse interrupt handler (IRQ12, vector 44)
+/// Call this from your IDT setup for mouse IRQ
+#[allow(unused_variables)]
+pub extern "x86-interrupt" fn mouse_interrupt_handler(
+    _stack_frame: x86_64::structures::idt::InterruptStackFrame,
+) {
+    let mut data_port = Port::new(0x60);
+
+    // Read 3-byte mouse packet
+    let packet: [u8; 3] = [
+        unsafe { data_port.read() },
+        unsafe { data_port.read() },
+        unsafe { data_port.read() },
+    ];
+
+    let left_btn = packet[0] & 0x1 != 0;
+    let x_move = packet[1] as i8 as i32;
+    let y_move = -(packet[2] as i8 as i32); // Y is inverted
+
+    unsafe {
+        MOUSE_X = (MOUSE_X + x_move).clamp(0, 319); // Assuming 320x200 screen
+        MOUSE_Y = (MOUSE_Y + y_move).clamp(0, 199);
+        MOUSE_LEFT_DOWN = left_btn;
+    }
+
+    // GUI integration (call these in your main event loop)
+    // crate::gui::update_cursor_from_mouse(MOUSE_X, MOUSE_Y);
+    // if MOUSE_LEFT_DOWN { crate::gui::handle_mouse_click(); }
 }
 
 // fn ask(text: &str) {

@@ -17,6 +17,7 @@ use kukios::interrupts::input;
 mod asm;
 mod functions;
 mod serial;
+mod startup_prompt;
 mod vga_buffer;
 
 entry_point!(kernel_main);
@@ -25,92 +26,27 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use kukios::allocator;
     use kukios::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
-    println!("Kukiweb + intelligence = KukiOS{}", "!");
 
-    println!("Welcome, Default User!");
-
+    // Initialize basic systems first
     kukios::init();
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("SERIOUS EXCEPTION: HEAP init failed");
-    // dispatch_command("load_animation");
-    // dispatch_command("load_animation");
-    // dispatch_command("load_animation");
-    // dispatch_command("load_animation");
-    // dispatch_command("load_animation");
 
-    println!("Written to disk test data (all ones - sector 1, 512 l).");
-    // unsafe {
-    //     println!("Foo value is: {}", my_adder(1, 1));
-    // }
-    let heap_value = Box::new(41);
-    println!("Heap Value well-know ({})", heap_value);
+    // Ask user for GUI preference
+    let use_gui = startup_prompt::ask_for_gui();
 
-    // executor.spawn(Task::new(example_task()));
-    // executor.spawn(Task::new(keyboard::print_keypresses()));
-    // executor.spawn(Task::new(future))
-    // executor.run();
-
-    let mut vec = Vec::new();
-    for i in 0..500 {
-        vec.push(i)
+    if use_gui {
+        // Start GUI mode
+        startup_prompt::show_gui_loading();
+        start_gui_mode();
+    } else {
+        // Continue with CLI mode
+        startup_prompt::show_cli_continuation();
+        start_cli_mode();
     }
-    println!("vec is located at {:p}", vec.as_slice());
-    let reference_counted = Rc::new(vec![1, 2, 3]);
-    let cloned_reference = reference_counted.clone();
-    core::mem::drop(reference_counted);
-
-    println!("Now in command mode. For help, type help.");
-    loop {
-        let x = input(kukios::interrupts::Helper::Empty);
-        dispatch_command(&x);
-        if x == "jailbreak" {
-            println!("Out of the command mode. Good luck soldier, you're on your own.");
-            break;
-        }
-    }
-    // let data = b"Somebody may say love is everything but thats wrong! KukiOS is everything!";
-    // fs.write_file(file_inode, data);
-    // let bytes_read = fs.read_file_by_name("test.txt", &mut buffer).unwrap();
-    // let x = translate_to_string_utf8loosy(&buffer[..bytes_read]);
-    // println!("{x}");
-    // let mut fs = FileSystem::new();
-    // fs.create_file("welcome.txt", b"Hello, World!").unwrap();
-    // let x = fs.read_file("welcome.txt").unwrap();
-    // let dat = vec_u8_to_string(x).unwrap();
-    // println!("{dat}");
-
-    // let mut buffer = vec![0u8; 1024];
-    // let bytes_read = fs.read_file(file_inode, &mut buffer);
-
-    // let translated_text = translate_to_string_utf8loosy(&buffer[..bytes_read]);
-    // println!("Translated text: {translated_text}");
-    // assert_eq!(&buffer[..bytes_read], data);
-    // println!(
-    // "File system operational. Written and read: {:?}",
-    // &buffer[..bytes_read]
-    // );
-    // fs.re
-    // let page = Page::containing_address(VirtAddr::new(0xdeadbeef000));
-    // memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
-    // let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
-    // unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e) };
-    // let l4_table = unsafe { active_level_4_table(phys_mem_offset) };
-    // for (i, entry) in l4_table.iter().enumerate() {
-    //     if !entry.is_unused() {
-    //         println!("L4 Entry {}: {:?}", i, entry);
-    //     }
-    // }
-    #[cfg(test)]
-    test_main();
-    // #[cfg(test)]
-    // test_main();
-
-    println!("Works!");
-
-    kukios::hlt_loop();
 }
 
 // extern "C" {
@@ -130,6 +66,61 @@ fn panic(info: &PanicInfo) -> ! {
     );
     sleep(1000000000);
     unsafe { acpi_shutdown() }
+    kukios::hlt_loop();
+}
+
+/// Start GUI mode
+fn start_gui_mode() -> ! {
+    use kukios::gui::init_gui;
+
+    println!("Initializing graphics subsystem...");
+
+    // Initialize GUI context
+    let mut gui = init_gui();
+
+    println!("Starting desktop environment...");
+
+    // Run GUI main loop
+    gui.run();
+
+    // Should never reach here, but just in case
+    kukios::hlt_loop();
+}
+
+/// Start CLI mode (original behavior)
+fn start_cli_mode() -> ! {
+    // Ensure cursor is enabled for CLI
+    use crate::vga_buffer::WRITER;
+    WRITER.lock().enable_cursor();
+
+    println!("Kukiweb + intelligence = KukiOS!");
+    println!("Welcome, Default User!");
+
+    println!("Written to disk test data (all ones - sector 1, 512 l).");
+
+    let heap_value = Box::new(41);
+    println!("Heap Value well-known ({})", heap_value);
+
+    let mut vec = Vec::new();
+    for i in 0..500 {
+        vec.push(i)
+    }
+    println!("vec is located at {:p}", vec.as_slice());
+    let reference_counted = Rc::new(vec![1, 2, 3]);
+    let cloned_reference = reference_counted.clone();
+    core::mem::drop(reference_counted);
+
+    println!("Now in command mode. For help, type help.");
+    println!("Type 'gui' to switch to graphical mode.");
+    loop {
+        let x = input(kukios::interrupts::Helper::Empty);
+        dispatch_command(&x);
+        if x == "jailbreak" {
+            println!("Out of the command mode. Good luck soldier, you're on your own.");
+            break;
+        }
+    }
+
     kukios::hlt_loop();
 }
 

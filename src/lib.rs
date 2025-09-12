@@ -20,6 +20,7 @@ mod disk;
 mod filesystem;
 mod functions;
 mod gdt;
+pub mod gui;
 pub mod interrupts;
 pub mod kafs;
 mod kukilang;

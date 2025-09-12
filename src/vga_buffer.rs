@@ -90,6 +90,25 @@ impl Writer {
         self.color_code = ColorCode::new(fg, bg);
     }
 
+    pub fn enable_cursor(&self) {
+        // Enable the cursor in VGA text mode
+        unsafe {
+            use x86_64::instructions::port::Port;
+
+            // Set cursor start line
+            let mut port = Port::new(0x3D4);
+            port.write(0x0A_u8);
+            let mut port = Port::new(0x3D5);
+            port.write(0x00_u8); // Start line 0
+
+            // Set cursor end line
+            let mut port = Port::new(0x3D4);
+            port.write(0x0B_u8);
+            let mut port = Port::new(0x3D5);
+            port.write(0x0F_u8); // End line 15 (full cursor)
+        }
+    }
+
     fn new_line(&mut self) {
         /* TODO */
         for row in 1..BUFFER_HEIGHT {

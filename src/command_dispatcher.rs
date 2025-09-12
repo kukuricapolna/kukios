@@ -42,6 +42,8 @@ lazy_static! {
         m.insert("future", print_history as fn());
         m.insert("tester", test_kukilang_code as fn());
         m.insert("viewcom", view_commands as fn());
+        m.insert("gui", start_gui as fn());
+        m.insert("startgui", start_gui as fn());
         Mutex::new(m)
     };
     static ref FILESYSTEM: Mutex<FileSystem> = Mutex::new(FileSystem::new(1024, 128, 512));
@@ -334,4 +336,11 @@ fn print_debug_colors() {
 
 fn test_colors() {
     print_colorful("TEST", "blue", "black");
+}
+
+fn start_gui() {
+    println!("Switching to GUI mode...");
+    println!("Note: GUI switching from CLI is not yet implemented.");
+    println!("Please restart the system to use GUI mode.");
+    println!("At startup, choose 'Y' when asked about GUI interface.");
 }
