@@ -9,9 +9,11 @@
 extern crate alloc;
 
 pub mod allocator;
+// this is only for tests
 mod asm;
 mod assembler;
 mod basic_commands;
+mod beta;
 pub mod builtin;
 pub mod command_dispatcher;
 mod disk;
@@ -20,12 +22,14 @@ mod functions;
 mod gdt;
 pub mod interrupts;
 pub mod kafs;
+mod kukilang;
 mod mem_filesystem;
 pub mod memory;
 mod misc;
 mod realsys;
 mod serial;
 mod task;
+mod time;
 pub mod vga_buffer;
 
 use core::{arch::asm, panic::PanicInfo};

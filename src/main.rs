@@ -39,7 +39,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // dispatch_command("load_animation");
     // dispatch_command("load_animation");
     // dispatch_command("load_animation");
-    dispatch_command("load_animation");
+    // dispatch_command("load_animation");
 
     println!("Written to disk test data (all ones - sector 1, 512 l).");
     // unsafe {

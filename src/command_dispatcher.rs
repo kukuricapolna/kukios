@@ -1,6 +1,7 @@
 use crate::{
     basic_commands::white_space_divider,
-    builtin::{chg_fg_bg, print_colorful, print_current_colors_debug},
+    beta::test_kukilang_code,
+    builtin::{chg_fg_bg, print_colorful, print_current_colors_debug, println_colorful},
     interrupts::{acpi_shutdown, input, Helper},
     mem_filesystem::FileSystem,
     misc::{print_history, view_logo},
@@ -13,6 +14,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
+use core::time::Duration;
 use lazy_static::lazy_static;
 
 use spin::Mutex;
@@ -38,10 +40,35 @@ lazy_static! {
         m.insert("test_colors", test_colors as fn());
         m.insert("neoget", view_logo as fn());
         m.insert("future", print_history as fn());
+        m.insert("tester", test_kukilang_code as fn());
+        m.insert("viewcom", view_commands as fn());
         Mutex::new(m)
     };
     static ref FILESYSTEM: Mutex<FileSystem> = Mutex::new(FileSystem::new(1024, 128, 512));
     static ref FILES: Mutex<Vec<String>> = Mutex::new(Vec::new());
+}
+
+fn datetime() {}
+
+fn view_commands() {
+    println!("Started the command");
+    let commands = COMMANDS.lock();
+    println!("Command finished and command(s) acknowledged.");
+    let commands_list = commands.iter();
+    println!("OK!");
+    // match commandss {
+    //     Err(err) => {}
+    //     Ok(_) => {}
+    // }
+
+    println!("Command stopped.");
+    println_colorful("COMMAND | FUNCTION", "cyan", "black");
+    println!("colors");
+    println!("Command(s) total: {}", commands.len());
+    println!("total");
+    for (command, function) in commands.iter() {
+        println!("{command} | {function:?}");
+    }
 }
 
 fn help() {
