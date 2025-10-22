@@ -110,7 +110,11 @@ impl TerminalState {
     pub fn handle_char(&mut self, ch: char) {
         if ch == '\n' || ch == '\r' {
             let command = self.current_input.clone();
-            self.execute_command(&command);
+            // Call the command dispatcher, just like CLI mode
+            crate::command_dispatcher::dispatch_command(&command);
+            // Show prompt for new command after Enter
+            self.current_input.clear();
+            self.cursor_position = 0;
         } else if ch == '\x08' {
             if self.cursor_position > 0 {
                 self.current_input.remove(self.cursor_position - 1);
@@ -196,13 +200,25 @@ impl Window {
             WindowContent::Terminal => {
                 let mut y_offset = 0;
 
-                // Render terminal output lines
-                for (i, line) in self.terminal_state.output_lines.iter().enumerate() {
-                    if y_offset + 12 > (self.rect.height as i32 - 40) {
-                        break; // Don't render lines that would go outside window
+                // Render redirected println! output if in GUI mode
+                if let Some(gui_writer) = crate::vga_buffer::get_gui_writer() {
+                    // let lines = gui_writer.lines();
+                    // for line in lines.iter() {
+                    //     if y_offset + 12 > (self.rect.height as i32 - 40) {
+                    //         break;
+                    //     }
+                    //     display.draw_text(content_x, content_y + y_offset, line, GUI_FOREGROUND);
+                    //     y_offset += 12;
+                    // }
+                } else {
+                    // Render terminal output lines
+                    for (i, line) in self.terminal_state.output_lines.iter().enumerate() {
+                        if y_offset + 12 > (self.rect.height as i32 - 40) {
+                            break; // Don't render lines that would go outside window
+                        }
+                        display.draw_text(content_x, content_y + y_offset, line, GUI_FOREGROUND);
+                        y_offset += 12;
                     }
-                    display.draw_text(content_x, content_y + y_offset, line, GUI_FOREGROUND);
-                    y_offset += 12;
                 }
 
                 // Add some space before input line
@@ -321,10 +337,10 @@ impl Desktop {
                 10,
                 "Kukiweb".to_string(),
                 Rect {
-                    x: 10,
-                    y: 10,
-                    width: 100,
-                    height: 100,
+                    x: 100,
+                    y: 100,
+                    width: 200,
+                    height: 200,
                 },
                 WindowContent::Custom("Vitejte na kukiweb.cz".to_string()),
             )],
@@ -337,21 +353,21 @@ impl Desktop {
 
     pub fn init(&mut self, _display: &mut VgaDisplay) {
         // Create initial windows
-        self.create_window(
-            "Terminal".to_string(),
-            Rect::new(20, 30, 200, 120),
-            WindowContent::Terminal,
-        );
-        self.create_window(
-            "About KukiOS".to_string(),
-            Rect::new(50, 60, 180, 100),
-            WindowContent::About,
-        );
-        self.create_window(
-            "Help".to_string(),
-            Rect::new(80, 40, 220, 130),
-            WindowContent::Custom("GUI Help Window".to_string()),
-        );
+        // self.create_window(
+        //     "Terminal".to_string(),
+        //     Rect::new(20, 30, 200, 120),
+        //     WindowContent::Terminal,
+        // );
+        // self.create_window(
+        //     "About KukiOS".to_string(),
+        //     Rect::new(50, 60, 180, 100),
+        //     WindowContent::About,
+        // );
+        // self.create_window(
+        //     "Help".to_string(),
+        //     Rect::new(80, 40, 220, 130),
+        //     WindowContent::Custom("GUI Help Window".to_string()),
+        // );
 
         // Set About window as modal and active at startup
         if let Some(pos) = self
@@ -417,25 +433,25 @@ impl Desktop {
     }
 
     pub fn handle_keyboard_input(&mut self, ch: char) {
-        // Arrow keys for cursor movement (using WASD for demo)
-        match ch {
-            'w' => self.cursor.move_by(0, -5),
-            'a' => self.cursor.move_by(-5, 0),
-            's' => self.cursor.move_by(0, 5),
-            'd' => self.cursor.move_by(5, 0),
-            '\n' | ' ' => {
-                // "Click" at cursor position
-                self.handle_cursor_click();
-            }
-            _ => {
-                // Send input to active terminal window
-                if let Some(active_idx) = self.active_window {
-                    if active_idx < self.windows.len() {
-                        self.windows[active_idx].handle_input(ch);
-                    }
-                }
-            }
-        }
+        // // Arrow keys for cursor movement (using WASD for demo)
+        // match ch {
+        //     'w' => self.cursor.move_by(0, -5),
+        //     'a' => self.cursor.move_by(-5, 0),
+        //     's' => self.cursor.move_by(0, 5),
+        //     'd' => self.cursor.move_by(5, 0),
+        //     '\n' | ' ' => {
+        //         // "Click" at cursor position
+        //         self.handle_cursor_click();
+        //     }
+        //     _ => {
+        //         // Send input to active terminal window
+        //         if let Some(active_idx) = self.active_window {
+        //             if active_idx < self.windows.len() {
+        //                 self.windows[active_idx].handle_input(ch);
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     /// Handles a click at the cursor position (activates window or button)

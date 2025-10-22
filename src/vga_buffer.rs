@@ -65,6 +65,41 @@ pub struct Writer {
     buffer: &'static mut Buffer,
 }
 
+// GUI terminal writer for output redirection
+pub struct GuiTerminalWriter {
+    pub output_lines: spin::Mutex<alloc::vec::Vec<alloc::string::String>>,
+}
+
+impl GuiTerminalWriter {
+    pub fn new() -> Self {
+        Self {
+            output_lines: spin::Mutex::new(alloc::vec::Vec::new()),
+        }
+    }
+    pub fn clear(&self) {
+        self.output_lines.lock().clear();
+    }
+    pub fn lines(&self) -> alloc::vec::Vec<alloc::string::String> {
+        self.output_lines.lock().clone()
+    }
+}
+
+impl core::fmt::Write for GuiTerminalWriter {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        let mut lines = self.output_lines.lock();
+        for line in s.split_inclusive('\n') {
+            if let Some(last) = lines.last_mut() {
+                if !last.ends_with('\n') {
+                    last.push_str(line);
+                    continue;
+                }
+            }
+            lines.push(line.to_string());
+        }
+        Ok(())
+    }
+}
+
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
@@ -181,14 +216,52 @@ macro_rules! info {
     ($($arg:tt)*) => ($crate::print!("[INFO] - {}\n", format_args!($($arg)*)));
 }
 
+static mut GUI_WRITER: Option<spin::Mutex<GuiTerminalWriter>> = None;
+static mut USE_GUI_WRITER: bool = false;
+
+/// Get a reference to the GUI writer if set (for GUI terminal output)
+pub fn get_gui_writer() -> Option<&'static spin::Mutex<GuiTerminalWriter>> {
+    unsafe { GUI_WRITER.as_ref() }
+}
+
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     use x86_64::instructions::interrupts;
 
     interrupts::without_interrupts(|| {
+        unsafe {
+            if USE_GUI_WRITER {
+                if let Some(ref writer) = GUI_WRITER {
+                    writer.lock().write_fmt(args).unwrap();
+                    return;
+                }
+            }
+        }
         WRITER.lock().write_fmt(args).unwrap();
     });
+}
+
+/// Call this to redirect println! output to the GUI terminal
+pub fn set_gui_writer_enabled(enabled: bool) {
+    unsafe {
+        USE_GUI_WRITER = enabled;
+    }
+}
+
+/// Call this to set the GUI writer (should be called with a reference to the GUI terminal's output buffer)
+pub fn set_gui_writer(writer: GuiTerminalWriter) {
+    unsafe {
+        GUI_WRITER = Some(spin::Mutex::new(writer));
+    }
+}
+
+/// Call this to clear the GUI writer (when exiting GUI mode)
+pub fn clear_gui_writer() {
+    unsafe {
+        GUI_WRITER = None;
+        USE_GUI_WRITER = false;
+    }
 }
 
 #[test_case]

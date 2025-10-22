@@ -152,6 +152,7 @@ QEMU_OPTS="$QEMU_OPTS -m 128M"  # 128MB RAM
 QEMU_OPTS="$QEMU_OPTS -cpu qemu64"  # Standard CPU
 QEMU_OPTS="$QEMU_OPTS -no-reboot"  # Exit on reboot
 QEMU_OPTS="$QEMU_OPTS -no-shutdown"  # Exit on shutdown
+QEMU_OPTS="$QEMU_OPTS -usb -device usb-mouse"  # Register touchpad as mouse input
 
 print_status "Starting KukiOS in QEMU..."
 echo

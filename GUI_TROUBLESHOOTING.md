@@ -32,7 +32,7 @@ while self.is_running {
 // Now uses static mode:
 self.render();  // Render once
 loop {
-    crate::sleep(100000000);  // Just wait, don't redraw
+    crate::sleep(100_000_000);  // Just wait, don't redraw
 }
 ```
 
@@ -45,7 +45,7 @@ loop {
 #### C. Increased Frame Delays
 Extended sleep intervals to prevent rapid screen updates:
 ```rust
-crate::sleep(100000000);  // 100ms delay instead of 10ms
+crate::sleep(100_000_000);  // 100ms delay instead of 10ms
 ```
 
 ### 2. VGA Mode Issues
@@ -171,7 +171,7 @@ Modify Cargo.toml to disable GUI features:
 
 ### Key Files:
 - `src/gui/mod.rs` - Main GUI loop and timing
-- `src/gui/graphics.rs` - VGA driver and low-level operations  
+- `src/gui/graphics.rs` - VGA driver and low-level operations
 - `src/gui/desktop.rs` - Window rendering and desktop management
 - `src/startup_prompt.rs` - Interface selection logic
 
@@ -185,7 +185,7 @@ Modify Cargo.toml to disable GUI features:
 
 ### Test Environment:
 - **Primary:** QEMU with `-vga std`
-- **Secondary:** QEMU with `-vga cirrus`  
+- **Secondary:** QEMU with `-vga cirrus`
 - **Advanced:** Real hardware with compatible VGA
 
 ### Test Sequence:

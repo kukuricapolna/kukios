@@ -2,7 +2,13 @@
 //! Provides graphical user interface functionality
 
 use crate::gui::graphics::Rgb888;
-use crate::interrupts::{input, Helper};
+use crate::interrupts::INPUT_BUFFER;
+use crate::interrupts::INPUT_READY;
+use crate::interrupts::{input, Helper, CTRL_PRESSED};
+use crate::vga_buffer::clear_gui_writer;
+use crate::vga_buffer::set_gui_writer;
+use crate::vga_buffer::set_gui_writer_enabled;
+use crate::vga_buffer::GuiTerminalWriter;
 use crate::{print, println};
 use alloc::string::{String, ToString};
 
@@ -130,57 +136,60 @@ impl GuiContext {
         let mut frame_counter = 0;
         let mut terminal_input = String::new();
 
-        // Main GUI event loop with simplified input and cursor control
+        // Set up println! redirection to GUI terminal
+        let gui_writer = GuiTerminalWriter::new();
+        set_gui_writer(gui_writer);
+        set_gui_writer_enabled(true);
+
         loop {
-            // Update cursor blinking every 60 frames (slower)
-            frame_counter += 1;
-            if frame_counter >= 60 {
-                self.desktop.update_terminal_cursors();
-                self.render(); // Re-render to show cursor blink
-                frame_counter = 0;
+            let mut redraw = false;
+
+            // Redraw if CTRL_PRESSED is set by the keyboard interrupt handler
+            if CTRL_PRESSED.swap(false, core::sync::atomic::Ordering::SeqCst) {
+                redraw = true;
             }
 
-            // Get simple character input for terminal or cursor
-            print!("> ");
-            let user_input = input(Helper::Is("GUI-Terminal".to_string()));
+            // Non-blocking input handling
+            if INPUT_READY.load(core::sync::atomic::Ordering::SeqCst) {
+                let buffer = INPUT_BUFFER.lock();
+                let user_input = buffer.iter().collect::<String>();
+                INPUT_READY.store(false, core::sync::atomic::Ordering::SeqCst);
 
-            if !user_input.trim().is_empty() {
+                // Process user_input as before (send to terminal, handle commands, etc)
                 match user_input.trim() {
                     "exit" | "quit" => {
                         self.is_running = false;
                         break;
                     }
                     // WASD for cursor movement, Space for click
-                    "w" | "a" | "s" | "d" | "" => {
-                        for ch in user_input.chars() {
-                            self.desktop.handle_keyboard_input(ch);
-                            self.render();
-                        }
-                    }
                     " " => {
                         self.desktop.handle_keyboard_input(' ');
-                        self.render();
+                        redraw = true;
                     }
                     _ => {
                         // Send input to active terminal window
                         for ch in user_input.chars() {
                             self.desktop.handle_keyboard_input(ch);
-                            self.render();
                         }
                         // Execute the command (Enter confirms command)
                         self.desktop.handle_keyboard_input('\n');
-                        self.render(); // Re-render after terminal update
                         println!("Command sent to terminal: {}", user_input.trim());
+                        redraw = true;
                     }
                 }
             }
 
-            // Improved refresh rate: render every loop iteration
-            self.render();
+            if redraw {
+                self.display.clear(GUI_BACKGROUND);
+                self.render();
+            }
 
-            // Small delay to prevent excessive CPU usage (tweak as needed)
-            crate::sleep(10000);
+            // Small delay to prevent excessive CPU usage
+            crate::sleep(10_000);
         }
+
+        // Restore println! to CLI mode
+        clear_gui_writer();
 
         // Reset VGA to text mode before returning to CLI
         self.display.reset_to_text_mode();

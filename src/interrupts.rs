@@ -16,14 +16,17 @@ use alloc::{
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 
+/// Global flag for Ctrl key pressed
+pub static CTRL_PRESSED: AtomicBool = AtomicBool::new(false);
+
 use spin::{self, Mutex};
 use x86_64::instructions::port::Port;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 // Mouse state for GUI integration
-static mut MOUSE_X: i32 = 160;
-static mut MOUSE_Y: i32 = 100;
-static mut MOUSE_LEFT_DOWN: bool = false;
+pub static mut MOUSE_X: i32 = 160;
+pub static mut MOUSE_Y: i32 = 100;
+pub static mut MOUSE_LEFT_DOWN: bool = false;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -47,9 +50,9 @@ impl InterruptIndex {
 }
 
 lazy_static! {
-    static ref KEYS_PRESSED: Mutex<Vec<char>> = Mutex::new(Vec::new());
-    static ref INPUT_BUFFER: Mutex<Vec<char>> = Mutex::new(Vec::new());
-    static ref INPUT_READY: AtomicBool = AtomicBool::new(false);
+    pub static ref KEYS_PRESSED: Mutex<Vec<char>> = Mutex::new(Vec::new());
+    pub static ref INPUT_BUFFER: Mutex<Vec<char>> = Mutex::new(Vec::new());
+    pub static ref INPUT_READY: AtomicBool = AtomicBool::new(false);
     pub static ref HISTORY: Mutex<BTreeMap<String, usize>> = Mutex::new(BTreeMap::new());
 }
 
@@ -167,7 +170,12 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
                         print!("{}", character.clone())
                     }
                 }
-                DecodedKey::RawKey(_key) => (), //{print!("Special: {:?}", key)},
+                DecodedKey::RawKey(keycode) => {
+                    use pc_keyboard::KeyCode;
+                    if keycode == KeyCode::LControl || keycode == KeyCode::RControl {
+                        CTRL_PRESSED.store(true, Ordering::SeqCst);
+                    }
+                }
             }
         }
     }
